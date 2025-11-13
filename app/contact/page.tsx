@@ -257,26 +257,27 @@ export default function ContactPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Send To *
                       </label>
-                      <select
+                      <input
+                        type="email"
                         name="sendTo"
                         required
                         value={formData.sendTo}
                         onChange={handleChange}
+                        list="sendToSuggestions"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
-                      >
-                        {sendToOptions.length === 0 && (
-                          <option value="">Loading...</option>
-                        )}
+                        placeholder="Type email or select from suggestions"
+                      />
+                      <datalist id="sendToSuggestions">
                         {sendToOptions.map((email) => (
                           <option key={email} value={email}>
-                            {email.includes('sales') ? '💼 Sales' : 
-                             email.includes('quotes') ? '📋 Quotes' : 
-                             email.includes('support') ? '🛠️ Support' : 
-                             email}
+                            {email.includes('sales') ? 'Sales' : 
+                             email.includes('quotes') ? 'Quotes' : 
+                             email.includes('support') ? 'Support' : 
+                             'Contact'}
                           </option>
                         ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-2">Choose the department that best matches your inquiry.</p>
+                      </datalist>
+                      <p className="text-xs text-gray-500 mt-2">Type any email address or select from department suggestions.</p>
                     </div>
                   </div>
 

@@ -58,6 +58,7 @@ export default function EmployeePortalPage() {
   const [emailMessage, setEmailMessage] = useState('');
   const [emailTo, setEmailTo] = useState('');
   const [outbox, setOutbox] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
   const [documents, setDocuments] = useState([
     {
       id: 1,
@@ -94,6 +95,10 @@ export default function EmployeePortalPage() {
     }).catch(()=>{});
     fetch('/api/emails?limit=20').then(r=>r.json()).then(res=>{
       if(res?.data) setOutbox(res.data);
+    }).catch(()=>{});
+    // load inquiries from database
+    fetch('/api/inquiries?limit=50').then(r=>r.json()).then(res=>{
+      if(res?.inquiries) setInquiries(res.inquiries);
     }).catch(()=>{});
     return () => {
       // eslint-disable-next-line no-console
@@ -1467,7 +1472,9 @@ export default function EmployeePortalPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">New Requests</p>
-                    <p className="text-3xl font-bold text-blue-600">5</p>
+                    <p className="text-3xl font-bold text-blue-600">
+                      {inquiries.filter(i => i.status === 'new' || !i.status).length}
+                    </p>
                   </div>
                   <div className="text-4xl">✉️</div>
                 </div>
@@ -1476,7 +1483,9 @@ export default function EmployeePortalPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">Responded</p>
-                    <p className="text-3xl font-bold text-green-600">12</p>
+                    <p className="text-3xl font-bold text-green-600">
+                      {inquiries.filter(i => i.status === 'responded').length}
+                    </p>
                   </div>
                   <div className="text-4xl">✅</div>
                 </div>
@@ -1485,7 +1494,9 @@ export default function EmployeePortalPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">Pending</p>
-                    <p className="text-3xl font-bold text-orange-600">3</p>
+                    <p className="text-3xl font-bold text-orange-600">
+                      {inquiries.filter(i => i.status === 'pending').length}
+                    </p>
                   </div>
                   <div className="text-4xl">⏱️</div>
                 </div>
@@ -1495,7 +1506,7 @@ export default function EmployeePortalPage() {
             {/* Quote Requests Table */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
               <div className="p-6 border-b flex justify-between items-center">
-                <h3 className="text-xl font-bold">Quote Requests</h3>
+                <h3 className="text-xl font-bold">Quote Requests ({inquiries.length})</h3>
                 <button 
                   onClick={handleComposeEmail}
                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
@@ -1511,80 +1522,83 @@ export default function EmployeePortalPage() {
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer Name</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Service Type</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Route</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Product/Weight</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
                       <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4">Nov 12, 2025</td>
-                      <td className="px-6 py-4 font-medium">Tech Solutions Inc</td>
-                      <td className="px-6 py-4">contact@techsolutions.com</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Airfreight</span>
-                      </td>
-                      <td className="px-6 py-4">Tokyo, Japan → Seattle, USA</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">New</span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button 
-                          onClick={() => handleViewQuote('Tech Solutions Inc', 'contact@techsolutions.com')}
-                          className="text-blue-600 hover:text-blue-800 mr-3"
-                        >
-                          View
-                        </button>
-                        <button 
-                          onClick={() => handleReplyToQuote('Tech Solutions Inc', 'contact@techsolutions.com')}
-                          className="text-green-600 hover:text-green-800"
-                        >
-                          Reply
-                        </button>
-                      </td>
-                    </tr>
-                    <tr className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4">Nov 11, 2025</td>
-                      <td className="px-6 py-4 font-medium">Global Traders Ltd</td>
-                      <td className="px-6 py-4">info@globaltraders.com</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">Seafreight FCL</span>
-                      </td>
-                      <td className="px-6 py-4">Hamburg, Germany → New York, USA</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Responded</span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button 
-                          onClick={() => handleViewQuote('Global Traders Ltd', 'info@globaltraders.com')}
-                          className="text-blue-600 hover:text-blue-800 mr-3"
-                        >
-                          View
-                        </button>
-                        <button className="text-gray-400" disabled>Reply</button>
-                      </td>
-                    </tr>
-                    <tr className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4">Nov 10, 2025</td>
-                      <td className="px-6 py-4 font-medium">Fashion Imports Co</td>
-                      <td className="px-6 py-4">orders@fashionimports.com</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Seafreight LCL</span>
-                      </td>
-                      <td className="px-6 py-4">Mumbai, India → Los Angeles, USA</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Responded</span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button 
-                          onClick={() => handleViewQuote('Fashion Imports Co', 'orders@fashionimports.com')}
-                          className="text-blue-600 hover:text-blue-800 mr-3"
-                        >
-                          View
-                        </button>
-                        <button className="text-gray-400" disabled>Reply</button>
-                      </td>
-                    </tr>
+                    {inquiries.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                          No inquiries yet. Contact form submissions will appear here.
+                        </td>
+                      </tr>
+                    ) : (
+                      inquiries.map((inquiry) => (
+                        <tr key={inquiry.id} className="border-t hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm">
+                            {new Date(inquiry.createdAt).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
+                          </td>
+                          <td className="px-6 py-4 font-medium">
+                            {inquiry.name}
+                            {inquiry.company && <div className="text-xs text-gray-500">{inquiry.company}</div>}
+                          </td>
+                          <td className="px-6 py-4 text-sm">{inquiry.email}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              inquiry.service === 'airfreight' ? 'bg-blue-100 text-blue-700' :
+                              inquiry.service === 'fcl' ? 'bg-purple-100 text-purple-700' :
+                              inquiry.service === 'lcl' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {inquiry.service === 'airfreight' ? 'Airfreight' :
+                               inquiry.service === 'fcl' ? 'FCL' :
+                               inquiry.service === 'lcl' ? 'LCL' :
+                               inquiry.service}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            {inquiry.productType && <div className="text-gray-700">{inquiry.productType}</div>}
+                            {inquiry.weight && (
+                              <div className="text-xs text-gray-500">
+                                {inquiry.weight} {inquiry.weightUnit || 'kg'}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              inquiry.status === 'responded' ? 'bg-green-100 text-green-700' :
+                              inquiry.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-orange-100 text-orange-700'
+                            }`}>
+                              {inquiry.status === 'responded' ? 'Responded' :
+                               inquiry.status === 'pending' ? 'Pending' : 'New'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button 
+                              onClick={() => {
+                                alert(`Message: ${inquiry.message}\n\nPhone: ${inquiry.phone || 'N/A'}`);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 mr-3 text-sm"
+                            >
+                              View
+                            </button>
+                            <button 
+                              onClick={() => handleReplyToQuote(inquiry.name, inquiry.email)}
+                              className="text-green-600 hover:text-green-800 text-sm"
+                            >
+                              Reply
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
