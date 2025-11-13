@@ -47,15 +47,38 @@ export default function PortalPage() {
   ]);
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [supportForm, setSupportForm] = useState({
+    subject: '',
+    priority: 'Normal',
+    trackingId: '',
+    message: ''
+  });
+  const [notification, setNotification] = useState<{type: 'success'|'error', message: string} | null>(null);
+  const [emailHistory, setEmailHistory] = useState<any[]>([]);
   
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('[Portal] mounted');
+    // Load email history for this customer
+    if (user?.email) {
+      fetch(`/api/emails?limit=50`)
+        .then(r => r.json())
+        .then(res => {
+          if (res?.data) {
+            // Filter emails sent to or from this customer
+            const customerEmails = res.data.filter((email: any) => 
+              email.to?.includes(user.email) || email.from === user.email
+            );
+            setEmailHistory(customerEmails);
+          }
+        })
+        .catch(() => {});
+    }
     return () => {
       // eslint-disable-next-line no-console
       console.log('[Portal] unmounted');
     };
-  }, []);
+  }, [user]);
 
   // Redirect to login if not authenticated, or to employee portal if employee
   useEffect(() => {
@@ -119,6 +142,48 @@ export default function PortalPage() {
     );
     setShipments(updatedShipments);
     setEditingShipment(null);
+  };
+
+  const handleSendSupportMessage = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: user.email,
+          to: 'support@asianshippingthai.com', // This will use MAIL_TO from env
+          subject: `[${supportForm.priority}] ${supportForm.subject}${supportForm.trackingId ? ` - ${supportForm.trackingId}` : ''}`,
+          text: `From: ${user.name} (${user.email})\nPriority: ${supportForm.priority}\n${supportForm.trackingId ? `Tracking ID: ${supportForm.trackingId}\n` : ''}\n\nMessage:\n${supportForm.message}`
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNotification({ type: 'success', message: '✅ Message sent successfully! Our team will respond within 24 hours.' });
+        setSupportForm({ subject: '', priority: 'Normal', trackingId: '', message: '' });
+        // Reload email history
+        fetch(`/api/emails?limit=50`)
+          .then(r => r.json())
+          .then(res => {
+            if (res?.data) {
+              const customerEmails = res.data.filter((email: any) => 
+                email.to?.includes(user.email) || email.from === user.email
+              );
+              setEmailHistory(customerEmails);
+            }
+          });
+      } else {
+        setNotification({ type: 'error', message: '❌ Failed to send message. Please try again or call us.' });
+      }
+      
+      setTimeout(() => setNotification(null), 5000);
+    } catch (error) {
+      setNotification({ type: 'error', message: '❌ Connection error. Please try again later.' });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
   return (
@@ -231,6 +296,29 @@ export default function PortalPage() {
 
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-y-auto">
+        {/* Notification Banner */}
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className={`mb-6 p-4 rounded-lg shadow-lg ${
+              notification.type === 'success' ? 'bg-green-100 border-l-4 border-green-500 text-green-700' :
+              'bg-red-100 border-l-4 border-red-500 text-red-700'
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <span className="font-medium">{notification.message}</span>
+              <button 
+                onClick={() => setNotification(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Dashboard */}
         {activeSection === 'dashboard' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -941,14 +1029,19 @@ export default function PortalPage() {
             </div>
 
             {/* Contact Form */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
               <h3 className="text-2xl font-bold mb-6">Send us a Message</h3>
-              <form className="space-y-6">
+              <form onSubmit={handleSendSupportMessage} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Subject *</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-4 py-3">
-                      <option>Select Subject</option>
+                    <select 
+                      value={supportForm.subject}
+                      onChange={(e) => setSupportForm({...supportForm, subject: e.target.value})}
+                      required
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                    >
+                      <option value="">Select Subject</option>
                       <option>Shipment Inquiry</option>
                       <option>Billing Question</option>
                       <option>Technical Support</option>
@@ -958,7 +1051,11 @@ export default function PortalPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-4 py-3">
+                    <select 
+                      value={supportForm.priority}
+                      onChange={(e) => setSupportForm({...supportForm, priority: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                    >
                       <option>Normal</option>
                       <option>High</option>
                       <option>Urgent</option>
@@ -967,20 +1064,62 @@ export default function PortalPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tracking ID (Optional)</label>
-                  <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="TRK-2025-XXX" />
+                  <input 
+                    type="text" 
+                    value={supportForm.trackingId}
+                    onChange={(e) => setSupportForm({...supportForm, trackingId: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3" 
+                    placeholder="TRK-2025-XXX" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Message *</label>
-                  <textarea rows={6} className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="Describe your issue or question in detail..."></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attach Files (Optional)</label>
-                  <input type="file" multiple className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100" />
+                  <textarea 
+                    rows={6} 
+                    value={supportForm.message}
+                    onChange={(e) => setSupportForm({...supportForm, message: e.target.value})}
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3" 
+                    placeholder="Describe your issue or question in detail..."
+                  ></textarea>
                 </div>
                 <button type="submit" className="w-full bg-red-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-red-700 transition">
                   Send Message
                 </button>
               </form>
+            </div>
+
+            {/* Email History */}
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+              <h3 className="text-2xl font-bold mb-6">Your Email History</h3>
+              {emailHistory.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No email correspondence yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {emailHistory.map((email, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-semibold">{email.subject}</p>
+                          <p className="text-sm text-gray-600">
+                            {email.direction === 'outgoing' ? `To: ${email.to}` : `From: ${email.from}`}
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          email.status === 'sent' ? 'bg-green-100 text-green-700' :
+                          email.status === 'failed' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {email.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {new Date(email.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* FAQ Section */}
