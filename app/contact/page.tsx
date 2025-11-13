@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export default function ContactPage() {
@@ -10,14 +10,32 @@ export default function ContactPage() {
     phone: '',
     company: '',
     service: 'airfreight',
+    sendTo: '', // Department/email to send to
     // New fields
     productType: '',
     weight: '',
     weightUnit: 'kg',
     message: '',
   });
+  const [sendToOptions, setSendToOptions] = useState<string[]>([]);
   const [errors, setErrors] = useState<{ productType?: string; weight?: string }>({});
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  // Fetch available email addresses on mount
+  useEffect(() => {
+    fetch('/api/emails?options=1')
+      .then(r => r.json())
+      .then(res => {
+        if (res?.fromOptions?.length) {
+          setSendToOptions(res.fromOptions);
+          setFormData(prev => ({ ...prev, sendTo: res.fromOptions[0] }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Derived UI helper: show converted weight hint
   const convertedWeight = (() => {
     const w = parseFloat(formData.weight);
@@ -30,9 +48,6 @@ export default function ContactPage() {
       return `≈ ${kg.toFixed(2)} kg`;
     }
   })();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +91,7 @@ export default function ContactPage() {
           phone: '',
           company: '',
           service: 'airfreight',
+          sendTo: sendToOptions[0] || '',
           productType: '',
           weight: '',
           weightUnit: 'kg',
@@ -217,23 +233,51 @@ export default function ContactPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Service Interested In *
-                    </label>
-                    <select
-                      name="service"
-                      required
-                      value={formData.service}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
-                    >
-                      <option value="airfreight">Airfreight Services</option>
-                      <option value="fcl">Seafreight - FCL</option>
-                      <option value="lcl">Seafreight - LCL</option>
-                      <option value="tracking">Tracking & Monitoring</option>
-                      <option value="other">Other Services</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Service Interested In *
+                      </label>
+                      <select
+                        name="service"
+                        required
+                        value={formData.service}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
+                      >
+                        <option value="airfreight">Airfreight Services</option>
+                        <option value="fcl">Seafreight - FCL</option>
+                        <option value="lcl">Seafreight - LCL</option>
+                        <option value="tracking">Tracking & Monitoring</option>
+                        <option value="other">Other Services</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Send To *
+                      </label>
+                      <select
+                        name="sendTo"
+                        required
+                        value={formData.sendTo}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition"
+                      >
+                        {sendToOptions.length === 0 && (
+                          <option value="">Loading...</option>
+                        )}
+                        {sendToOptions.map((email) => (
+                          <option key={email} value={email}>
+                            {email.includes('sales') ? '💼 Sales' : 
+                             email.includes('quotes') ? '📋 Quotes' : 
+                             email.includes('support') ? '🛠️ Support' : 
+                             email}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-2">Choose the department that best matches your inquiry.</p>
+                    </div>
                   </div>
 
                   {/* Shipment Details */}
@@ -415,13 +459,29 @@ export default function ContactPage() {
               transition={{ delay: 0.5 }}
             >
               <div className="text-red-600 text-3xl mb-4">✉️</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Email</h3>
-              <p className="text-gray-600">
-                <a href="mailto:info@logisticsco.com" className="hover:text-red-600 transition">
-                  info@logisticsco.com
-                </a>
-              </p>
-              <p className="text-sm text-gray-500 mt-1">We reply within 24 hours</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Email Departments</h3>
+              <div className="space-y-2">
+                {sendToOptions.length > 0 ? (
+                  sendToOptions.map((email) => (
+                    <p key={email} className="text-sm text-gray-600">
+                      <a href={`mailto:${email}`} className="hover:text-red-600 transition">
+                        {email.includes('sales') ? '💼 ' : 
+                         email.includes('quotes') ? '📋 ' : 
+                         email.includes('support') ? '🛠️ ' : 
+                         '📧 '}
+                        {email}
+                      </a>
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    <a href="mailto:info@asianshippingthai.com" className="hover:text-red-600 transition">
+                      info@asianshippingthai.com
+                    </a>
+                  </p>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-3">We reply within 24 hours</p>
             </motion.div>
 
             {/* Business Hours */}

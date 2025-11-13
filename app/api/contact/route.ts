@@ -12,6 +12,7 @@ export async function POST(req: Request) {
       phone,
       company,
       service,
+      sendTo,
       productType,
       weight,
       weightUnit,
@@ -46,7 +47,11 @@ export async function POST(req: Request) {
     });
 
     // Try to notify via email (best-effort, non-blocking)
+    // Use sendTo if provided, otherwise fall back to MAIL_TO env var
+    const recipient = sendTo || process.env.MAIL_TO;
+    
     void sendMail({
+      to: recipient,
       subject: `New inquiry from ${name} (${service || 'General'})`,
       text: `New inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`,
       html: `<p><strong>New inquiry received</strong></p>
