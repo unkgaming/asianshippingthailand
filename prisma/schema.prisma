@@ -49,3 +49,18 @@ model ShipmentDocument {
   url        String?
   createdAt  DateTime @default(now())
 }
+
+model Inquiry {
+  id         String   @id @default(cuid())
+  name       String
+  email      String
+  phone      String?
+  company    String?
+  service    String?
+  productType String?
+  weight     Float?
+  weightUnit String?
+  message    String
+  status     String   @default("new")
+  createdAt  DateTime @default(now())
+}
