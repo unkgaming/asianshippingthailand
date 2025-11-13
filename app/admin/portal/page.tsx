@@ -52,9 +52,12 @@ export default function EmployeePortalPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
   const [trackingId, setTrackingId] = useState('');
+  const [emailFrom, setEmailFrom] = useState('');
+  const [fromOptions, setFromOptions] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [emailTo, setEmailTo] = useState('');
+  const [outbox, setOutbox] = useState<any[]>([]);
   const [documents, setDocuments] = useState([
     {
       id: 1,
@@ -82,6 +85,16 @@ export default function EmployeePortalPage() {
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('[Portal] mounted');
+    // load email config + recent outbox
+    fetch('/api/emails?options=1').then(r=>r.json()).then(res=>{
+      if(res?.fromOptions?.length){
+        setFromOptions(res.fromOptions);
+        setEmailFrom(res.fromOptions[0]);
+      }
+    }).catch(()=>{});
+    fetch('/api/emails?limit=20').then(r=>r.json()).then(res=>{
+      if(res?.data) setOutbox(res.data);
+    }).catch(()=>{});
     return () => {
       // eslint-disable-next-line no-console
       console.log('[Portal] unmounted');
@@ -298,12 +311,21 @@ export default function EmployeePortalPage() {
     });
   };
 
-  const handleSendEmail = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    alert(`Email sent to: ${emailTo}\nSubject: ${emailSubject}\nMessage: ${emailMessage}`);
-    setEmailTo('');
-    setEmailSubject('');
-    setEmailMessage('');
+    const res = await fetch('/api/emails',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ from: emailFrom, to: emailTo, subject: emailSubject, text: emailMessage })
+    });
+    const data = await res.json();
+    if(res.ok){
+      alert('Email queued/sent');
+      setEmailTo(''); setEmailSubject(''); setEmailMessage('');
+      fetch('/api/emails?limit=20').then(r=>r.json()).then(r=> setOutbox(r?.data||[]));
+    }else{
+      alert('Failed to send: '+(data?.error||'unknown'));
+    }
   };
 
   const handleTrackShipment = (e: React.FormEvent<HTMLFormElement>) => {
@@ -1572,7 +1594,13 @@ export default function EmployeePortalPage() {
             <div className="bg-white rounded-xl shadow-lg p-8">
               <h3 className="text-xl font-bold mb-6">Send Quote Response</h3>
               <form onSubmit={handleSendEmail} className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
+                    <select value={emailFrom} onChange={e=>setEmailFrom(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2">
+                      {fromOptions.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Customer Email</label>
                     <input
@@ -1634,6 +1662,37 @@ export default function EmployeePortalPage() {
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Outbox */}
+            <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
+              <h3 className="text-xl font-bold mb-4">Recent Emails</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Date</th>
+                      <th className="px-4 py-2 text-left">From</th>
+                      <th className="px-4 py-2 text-left">To</th>
+                      <th className="px-4 py-2 text-left">Subject</th>
+                      <th className="px-4 py-2 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outbox.map((m)=> (
+                      <tr key={m.id} className="border-t">
+                        <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString()}</td>
+                        <td className="px-4 py-2">{m.from}</td>
+                        <td className="px-4 py-2">{m.to}</td>
+                        <td className="px-4 py-2 truncate max-w-[300px]">{m.subject}</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${m.status==='sent'?'bg-green-100 text-green-700': m.status==='failed'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{m.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.div>
         )}

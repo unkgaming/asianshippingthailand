@@ -64,3 +64,17 @@ model Inquiry {
   status     String   @default("new")
   createdAt  DateTime @default(now())
 }
+
+model EmailMessage {
+  id         String   @id @default(cuid())
+  direction  String   @default("outgoing") // outgoing | incoming (future)
+  from       String
+  to         String
+  subject    String
+  text       String?
+  html       String?
+  status     String   @default("queued") // queued | sent | failed
+  error      String?
+  createdAt  DateTime @default(now())
+  sentAt     DateTime?
+}

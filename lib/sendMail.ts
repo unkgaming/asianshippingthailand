@@ -2,7 +2,8 @@ import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 
 export type SendMailInput = {
-  to?: string;
+  from?: string;
+  to?: string | string[];
   subject: string;
   text?: string;
   html?: string;
@@ -11,7 +12,7 @@ export type SendMailInput = {
 const defaultTo = process.env.MAIL_TO;
 const defaultFrom = process.env.MAIL_FROM || 'no-reply@asianshippingthai.com';
 
-export async function sendMail({ to = defaultTo, subject, text, html }: SendMailInput) {
+export async function sendMail({ from, to = defaultTo, subject, text, html }: SendMailInput) {
   if (!to) return; // no destination configured
 
   // Prefer Resend if API key present
@@ -20,8 +21,8 @@ export async function sendMail({ to = defaultTo, subject, text, html }: SendMail
     const resend = new Resend(resendKey);
     try {
       await resend.emails.send({
-        from: defaultFrom,
-        to: [to],
+        from: from || defaultFrom,
+        to: Array.isArray(to) ? to : [to],
         subject,
         text,
         html,
@@ -47,5 +48,5 @@ export async function sendMail({ to = defaultTo, subject, text, html }: SendMail
     auth: { user, pass },
   });
 
-  await transporter.sendMail({ from: defaultFrom, to, subject, text, html });
+  await transporter.sendMail({ from: from || defaultFrom, to, subject, text, html });
 }
