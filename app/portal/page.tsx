@@ -1182,9 +1182,3 @@ export default function PortalPage() {
     </ErrorBoundary>
   );
 }
-
-// Add mount/unmount logs to help debug blank-screen navigation issues
-export function __portal_mount_logger() {
-  // This function is intentionally exported for quick testing if needed
-  // (not used by page directly)
-}

@@ -6,9 +6,10 @@ async function findByCode(code: string) {
   return prisma.shipment.findUnique({ where: { code }, include: { documents: true } });
 }
 
-export async function GET(_: Request, { params }: { params: { code: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
-    const shipment = await findByCode(params.code);
+    const { code } = await params;
+    const shipment = await findByCode(code);
     if (!shipment) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     return NextResponse.json({ ok: true, data: shipment });
   } catch {
@@ -16,14 +17,15 @@ export async function GET(_: Request, { params }: { params: { code: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { code: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
+    const { code } = await params;
     const body = await req.json();
-    const shipment = await findByCode(params.code);
+    const shipment = await findByCode(code);
     if (!shipment) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
 
     const updated = await prisma.shipment.update({
-      where: { code: params.code },
+      where: { code },
       data: {
         customerName: body.customerName ?? shipment.customerName,
         customerEmail: body.customerEmail ?? shipment.customerEmail,
@@ -48,9 +50,10 @@ export async function PATCH(req: Request, { params }: { params: { code: string }
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { code: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
-    await prisma.shipment.delete({ where: { code: params.code } });
+    const { code } = await params;
+    await prisma.shipment.delete({ where: { code } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ ok: false, error: 'Failed to delete' }, { status: 400 });
