@@ -59,6 +59,9 @@ export default function EmployeePortalPage() {
   const [emailTo, setEmailTo] = useState('');
   const [outbox, setOutbox] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success'|'error', message: string} | null>(null);
   const [documents, setDocuments] = useState([
     {
       id: 1,
@@ -325,11 +328,13 @@ export default function EmployeePortalPage() {
     });
     const data = await res.json();
     if(res.ok){
-      alert('Email queued/sent');
+      setNotification({ type: 'success', message: '✅ Email sent successfully!' });
       setEmailTo(''); setEmailSubject(''); setEmailMessage('');
       fetch('/api/emails?limit=20').then(r=>r.json()).then(r=> setOutbox(r?.data||[]));
+      setTimeout(() => setNotification(null), 5000);
     }else{
-      alert('Failed to send: '+(data?.error||'unknown'));
+      setNotification({ type: 'error', message: '❌ Failed to send: '+(data?.error||'unknown') });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -371,15 +376,27 @@ export default function EmployeePortalPage() {
     }
   };
 
-  const handleViewQuote = (customerName: string, email: string) => {
-    alert(`Viewing quote request from:\n\nCustomer: ${customerName}\nEmail: ${email}\n\nIn a real application, this would open the full quote details.`);
+  const handleViewQuote = (inquiry: any) => {
+    setSelectedInquiry(inquiry);
+    setShowInquiryModal(true);
   };
 
-  const handleReplyToQuote = (customerName: string, email: string) => {
+  const handleReplyToQuote = (inquiry: any) => {
+    const customerName = inquiry.name;
+    const email = inquiry.email;
     setEmailTo(email);
     setEmailSubject(`RE: Quote Request - ${customerName}`);
-  setEmailMessage(`Dear ${customerName},\n\nThank you for your quote request. We are pleased to provide you with a competitive quote for your logistics needs.\n\nBest regards,\nasianshippingthai Team`);
-    alert(`Email form pre-filled for ${customerName}. Scroll down to the email form to compose your response.`);
+    setEmailMessage(`Dear ${customerName},\n\nThank you for your quote request. We are pleased to provide you with a competitive quote for your logistics needs.\n\nBest regards,\nasianshippingthai Team`);
+    
+    // Scroll to email form
+    setTimeout(() => {
+      const emailForm = document.getElementById('email-compose-form');
+      if (emailForm) {
+        emailForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setNotification({ type: 'success', message: `📧 Email form filled for ${customerName}` });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }, 100);
   };
 
   const handleComposeEmail = () => {
@@ -502,6 +519,136 @@ export default function EmployeePortalPage() {
 
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-y-auto">
+        {/* Notification Banner */}
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className={`mb-6 p-4 rounded-lg shadow-lg ${
+                notification.type === 'success' ? 'bg-green-100 border-l-4 border-green-500 text-green-700' :
+                'bg-red-100 border-l-4 border-red-500 text-red-700'
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-medium">{notification.message}</span>
+                <button 
+                  onClick={() => setNotification(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Inquiry Detail Modal */}
+        <AnimatePresence>
+          {showInquiryModal && selectedInquiry && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowInquiryModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-8">
+                  <div className="flex justify-between items-start mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Inquiry Details</h2>
+                    <button
+                      onClick={() => setShowInquiryModal(false)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Customer Name</label>
+                        <p className="text-lg text-gray-800">{selectedInquiry.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Email</label>
+                        <p className="text-lg text-gray-800">{selectedInquiry.email}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Phone</label>
+                        <p className="text-lg text-gray-800">{selectedInquiry.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Company</label>
+                        <p className="text-lg text-gray-800">{selectedInquiry.company || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Service Type</label>
+                        <p className="text-lg text-gray-800 capitalize">{selectedInquiry.service}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Product Type</label>
+                        <p className="text-lg text-gray-800">{selectedInquiry.productType || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Weight</label>
+                        <p className="text-lg text-gray-800">
+                          {selectedInquiry.weight ? `${selectedInquiry.weight} ${selectedInquiry.weightUnit || 'kg'}` : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-500">Date Submitted</label>
+                        <p className="text-lg text-gray-800">
+                          {new Date(selectedInquiry.createdAt).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-semibold text-gray-500">Message</label>
+                      <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-gray-800 whitespace-pre-wrap">{selectedInquiry.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-8 flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowInquiryModal(false);
+                        handleReplyToQuote(selectedInquiry);
+                      }}
+                      className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold"
+                    >
+                      Reply to Customer
+                    </button>
+                    <button
+                      onClick={() => setShowInquiryModal(false)}
+                      className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Dashboard */}
         {activeSection === 'dashboard' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -1582,15 +1729,13 @@ export default function EmployeePortalPage() {
                           </td>
                           <td className="px-6 py-4 text-center">
                             <button 
-                              onClick={() => {
-                                alert(`Message: ${inquiry.message}\n\nPhone: ${inquiry.phone || 'N/A'}`);
-                              }}
+                              onClick={() => handleViewQuote(inquiry)}
                               className="text-blue-600 hover:text-blue-800 mr-3 text-sm"
                             >
                               View
                             </button>
                             <button 
-                              onClick={() => handleReplyToQuote(inquiry.name, inquiry.email)}
+                              onClick={() => handleReplyToQuote(inquiry)}
                               className="text-green-600 hover:text-green-800 text-sm"
                             >
                               Reply
@@ -1605,7 +1750,7 @@ export default function EmployeePortalPage() {
             </div>
 
             {/* Quick Email Form */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
+            <div id="email-compose-form" className="bg-white rounded-xl shadow-lg p-8">
               <h3 className="text-xl font-bold mb-6">Send Quote Response</h3>
               <form onSubmit={handleSendEmail} className="space-y-6">
                 <div className="grid grid-cols-3 gap-6">
