@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String?
+  provider  String?
+  createdAt DateTime @default(now())
+}
+
+model Shipment {
+  id                String             @id @default(cuid())
+  code              String             @unique
+  customerName      String
+  customerEmail     String
+  origin            String
+  destination       String
+  serviceType       String
+  status            String
+  paymentStatus     String
+  price             Float
+  weight            Float
+  packageType       String
+  containerContents String
+  bookingDate       DateTime
+  estimatedDelivery DateTime?
+  documents         ShipmentDocument[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model ShipmentDocument {
+  id         String   @id @default(cuid())
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  name       String
+  url        String?
+  createdAt  DateTime @default(now())
+}

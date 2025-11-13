@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #002B5B;
+  --accent: #FF6B00;
+  --bg: #F7F9FC;
+  --text-dark: #1E293B;
+  --text-light: #4B5563;
+}
+
+html, body {
+  height: 100%;
+  font-family: "Inter", "Noto Sans Thai", "Noto Sans SC", system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-dark);
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4 {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+a {
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.container-max {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[var(--accent)] text-white font-medium px-5 py-2.5 rounded-md shadow hover:bg-orange-500 transition;
+  }
+
+  .btn-outline {
+    @apply border border-[var(--accent)] text-[var(--accent)] px-5 py-2.5 rounded-md hover:bg-[var(--accent)] hover:text-white transition;
+  }
+
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition;
+  }
+
+  .section-title {
+    @apply text-3xl font-bold mb-4 text-[var(--primary)];
+  }
+
+  .section-sub {
+    @apply text-[var(--text-light)] text-lg mb-8;
+  }
+}
