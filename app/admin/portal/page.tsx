@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -8,44 +9,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function EmployeePortalPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
+  const { status } = useSession();
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [shipments, setShipments] = useState([
-    {
-      id: 'TRK-2025-001',
-      customerName: 'ABC Electronics Ltd',
-      customerEmail: 'contact@abcelectronics.com',
-      origin: 'Shanghai, China',
-      destination: 'Los Angeles, USA',
-      serviceType: 'Airfreight',
-      status: 'In Transit',
-      paymentStatus: 'Paid',
-      price: 2450.00,
-      weight: 125.5,
-      packageType: 'Cartons',
-      containerContents: 'Electronic Components',
-      bookingDate: '2025-11-01',
-      estimatedDelivery: '2025-11-15',
-      documents: ['Commercial Invoice', 'Packing List', 'Bill of Lading']
-    },
-    {
-      id: 'TRK-2025-002',
-      customerName: 'Fashion Imports Co',
-      customerEmail: 'orders@fashionimports.com',
-      origin: 'Mumbai, India',
-      destination: 'New York, USA',
-      serviceType: 'Seafreight LCL',
-      status: 'Pending Pickup',
-      paymentStatus: 'Pending',
-      price: 1850.00,
-      weight: 450.0,
-      packageType: 'Pallets',
-      containerContents: 'Textile Products',
-      bookingDate: '2025-11-08',
-      estimatedDelivery: '2025-12-10',
-      documents: ['Commercial Invoice']
-    }
-  ]);
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(true);
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,33 +30,59 @@ export default function EmployeePortalPage() {
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [notification, setNotification] = useState<{type: 'success'|'error', message: string} | null>(null);
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      name: 'Commercial_Invoice_001.pdf',
-      type: 'Invoice',
-      date: 'Nov 1, 2025',
-      size: '245 KB'
-    },
-    {
-      id: 2,
-      name: 'Packing_List.pdf',
-      type: 'Packing',
-      date: 'Nov 1, 2025',
-      size: '180 KB'
-    },
-    {
-      id: 3,
-      name: 'Bill_of_Lading.pdf',
-      type: 'BOL',
-      date: 'Nov 3, 2025',
-      size: '320 KB'
-    }
-  ]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState<any>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [replyingToInquiryId, setReplyingToInquiryId] = useState<string | null>(null);
+  const [createShipmentFromInquiry, setCreateShipmentFromInquiry] = useState<any>(null);
+  const [trackingUpdates, setTrackingUpdates] = useState<any[]>([]);
+  const [newTrackingStatus, setNewTrackingStatus] = useState('');
+  const [newTrackingLocation, setNewTrackingLocation] = useState('');
+  const [newTrackingDescription, setNewTrackingDescription] = useState('');
+  const [trackingResult, setTrackingResult] = useState<any>(null);
+  const [selectedInquiries, setSelectedInquiries] = useState<string[]>([]);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [showDatabaseModal, setShowDatabaseModal] = useState(false);
+  const [databasePassword, setDatabasePassword] = useState('');
+  const [databaseUnlocked, setDatabaseUnlocked] = useState(false);
+  const [databaseView, setDatabaseView] = useState<'shipments'|'inquiries'|'emails'|'users'>('shipments');
+  const [databaseData, setDatabaseData] = useState<any[]>([]);
+  const [databaseLoading, setDatabaseLoading] = useState(false);
+  const [selectedDbRecord, setSelectedDbRecord] = useState<any>(null);
+  const [showDbRecordModal, setShowDbRecordModal] = useState(false);
   
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('[Portal] mounted');
+    // Load shipments from DB
+    setShipmentsLoading(true);
+    fetch('/api/shipments')
+      .then(r => r.json())
+      .then(res => {
+        if (res?.ok && res.data) {
+          setShipments(res.data.map((s: any) => ({
+            id: s.code,
+            dbId: s.id,
+            customerName: s.customerName,
+            customerEmail: s.customerEmail,
+            origin: s.origin,
+            destination: s.destination,
+            serviceType: s.serviceType,
+            status: s.status,
+            paymentStatus: s.paymentStatus,
+            price: s.price,
+            weight: s.weight,
+            packageType: s.packageType,
+            containerContents: s.containerContents,
+            bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+            estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+            documents: s.documents || []
+          })));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setShipmentsLoading(false));
+
     // load email config + recent outbox
     fetch('/api/emails?options=1').then(r=>r.json()).then(res=>{
       if(res?.fromOptions?.length){
@@ -99,22 +93,53 @@ export default function EmployeePortalPage() {
     fetch('/api/emails?limit=20').then(r=>r.json()).then(res=>{
       if(res?.data) setOutbox(res.data);
     }).catch(()=>{});
-    // load inquiries from database
-    fetch('/api/inquiries?limit=50').then(r=>r.json()).then(res=>{
-      if(res?.inquiries) setInquiries(res.inquiries);
-    }).catch(()=>{});
+    // load inquiries from database (including replied ones)
+    fetch('/api/inquiries?limit=50&includeReplied=true').then(r=>r.json()).then(res=>{
+      console.log('[Admin Portal] Inquiries response:', res);
+      if(res?.inquiries) {
+        console.log('[Admin Portal] Setting inquiries:', res.inquiries.length);
+        setInquiries(res.inquiries);
+      } else {
+        console.warn('[Admin Portal] No inquiries in response');
+      }
+    }).catch((err)=>{
+      console.error('[Admin Portal] Failed to load inquiries:', err);
+    });
     return () => {
       // eslint-disable-next-line no-console
       console.log('[Portal] unmounted');
     };
   }, []);
 
-  // Redirect to employee login if not authenticated or not employee
+  // Redirect if unauthenticated; if logged in but not employee, send to customer portal
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'employee')) {
-      router.push('/admin');
+    console.log('[Portal Auth Check]', { 
+      isLoading, 
+      status, 
+      user, 
+      userRole: user?.role,
+      hasUser: !!user 
+    });
+    
+    // Only act when BOTH isLoading is false AND we have a status
+    if (!isLoading && status !== 'loading') {
+      // If authenticated but no user object yet, wait
+      if (status === 'authenticated' && !user) {
+        console.log('[Portal] Authenticated but user object not ready, waiting...');
+        return;
+      }
+      
+      if (!user || status === 'unauthenticated') {
+        console.log('[Portal] No user - redirecting to signin');
+        router.push('/signin');
+      } else if (user.role && user.role !== 'employee') {
+        console.log('[Portal] Not employee, role:', user.role, '- redirecting to customer portal');
+        router.push('/portal');
+      } else {
+        console.log('[Portal] Access granted for employee:', user.email);
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, status, router]);
 
   // Keyboard shortcuts effect
   useEffect(() => {
@@ -152,7 +177,7 @@ export default function EmployeePortalPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || status === 'loading') {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -163,53 +188,143 @@ export default function EmployeePortalPage() {
     );
   }
 
-  if (!user) {
-    return null; // Will redirect in useEffect
-  }
+  if (!user) return null;
 
-  const handleAddShipment = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddShipment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newShipment = {
-      id: `TRK-2025-${String(shipments.length + 1).padStart(3, '0')}`,
-      customerName: formData.get('customerName') as string,
-      customerEmail: formData.get('customerEmail') as string,
-      origin: formData.get('origin') as string,
-      destination: formData.get('destination') as string,
-      serviceType: formData.get('serviceType') as string,
-      status: 'Pending Pickup',
-      paymentStatus: formData.get('paymentStatus') as string,
-      price: parseFloat(formData.get('price') as string),
-      weight: parseFloat(formData.get('weight') as string),
-      packageType: formData.get('packageType') as string,
-      containerContents: formData.get('containerContents') as string,
-      bookingDate: formData.get('bookingDate') as string,
-      estimatedDelivery: formData.get('estimatedDelivery') as string,
-      documents: []
-    };
-    setShipments([...shipments, newShipment]);
-    setShowAddForm(false);
-    setActiveSection('shipments');
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: formData.get('customerName'),
+          customerEmail: formData.get('customerEmail'),
+          origin: formData.get('origin'),
+          destination: formData.get('destination'),
+          serviceType: formData.get('serviceType'),
+          paymentStatus: formData.get('paymentStatus'),
+          price: formData.get('price'),
+          weight: formData.get('weight'),
+          packageType: formData.get('packageType'),
+          containerContents: formData.get('containerContents'),
+          bookingDate: formData.get('bookingDate'),
+          estimatedDelivery: formData.get('estimatedDelivery'),
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const reloadRes = await fetch('/api/shipments');
+        const reloadData = await reloadRes.json();
+        if (reloadData?.ok && reloadData.data) {
+          setShipments(reloadData.data.map((s: any) => ({
+            id: s.code,
+            customerName: s.customerName,
+            customerEmail: s.customerEmail,
+            origin: s.origin,
+            destination: s.destination,
+            serviceType: s.serviceType,
+            status: s.status,
+            paymentStatus: s.paymentStatus,
+            price: s.price,
+            weight: s.weight,
+            packageType: s.packageType,
+            containerContents: s.containerContents,
+            bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+            estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+            documents: s.documents || []
+          })));
+        }
+        setShowAddForm(false);
+        setActiveSection('shipments');
+        setNotification({ type: 'success', message: '✅ Shipment created successfully!' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to create'}` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Connection error' });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
-  const handleUpdateShipment = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateShipment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const updatedShipments = shipments.map(s => 
-      s.id === editingShipment.id ? {
-        ...s,
-        status: formData.get('status') as string,
-        paymentStatus: formData.get('paymentStatus') as string,
-        price: parseFloat(formData.get('price') as string),
-      } : s
-    );
-    setShipments(updatedShipments);
-    setEditingShipment(null);
+    try {
+      const shipment = shipments.find(s => s.id === editingShipment.id);
+      if (!shipment) return;
+      const dbShipment = await fetch('/api/shipments').then(r=>r.json()).then(d => d.data?.find((s:any)=>s.code===shipment.id));
+      if (!dbShipment) return;
+
+      const res = await fetch('/api/shipments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: dbShipment.id,
+          status: formData.get('status'),
+          paymentStatus: formData.get('paymentStatus'),
+          price: formData.get('price'),
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const reloadRes = await fetch('/api/shipments');
+        const reloadData = await reloadRes.json();
+        if (reloadData?.ok && reloadData.data) {
+          setShipments(reloadData.data.map((s: any) => ({
+            id: s.code,
+            customerName: s.customerName,
+            customerEmail: s.customerEmail,
+            origin: s.origin,
+            destination: s.destination,
+            serviceType: s.serviceType,
+            status: s.status,
+            paymentStatus: s.paymentStatus,
+            price: s.price,
+            weight: s.weight,
+            packageType: s.packageType,
+            containerContents: s.containerContents,
+            bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+            estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+            documents: s.documents || []
+          })));
+        }
+        setEditingShipment(null);
+        setNotification({ type: 'success', message: '✅ Shipment updated!' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to update'}` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Connection error' });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
-  const handleDeleteShipment = (id: string) => {
-    if (confirm('Are you sure you want to delete this shipment?')) {
-      setShipments(shipments.filter(s => s.id !== id));
+  const handleDeleteShipment = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this shipment?')) return;
+    try {
+      const shipment = shipments.find(s => s.id === id);
+      if (!shipment) return;
+      const dbShipment = await fetch('/api/shipments').then(r=>r.json()).then(d => d.data?.find((s:any)=>s.code===shipment.id));
+      if (!dbShipment) return;
+
+      const res = await fetch(`/api/shipments?id=${dbShipment.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setShipments(shipments.filter(s => s.id !== id));
+        setNotification({ type: 'success', message: '✅ Shipment deleted!' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to delete'}` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Connection error' });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -324,13 +439,24 @@ export default function EmployeePortalPage() {
     const res = await fetch('/api/emails',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ from: emailFrom, to: emailTo, subject: emailSubject, text: emailMessage })
+      body: JSON.stringify({ 
+        from: emailFrom, 
+        to: emailTo, 
+        subject: emailSubject, 
+        text: emailMessage,
+        inquiryId: replyingToInquiryId 
+      })
     });
     const data = await res.json();
     if(res.ok){
       setNotification({ type: 'success', message: '✅ Email sent successfully!' });
       setEmailTo(''); setEmailSubject(''); setEmailMessage('');
+      setReplyingToInquiryId(null); // Clear inquiry ID after sending
       fetch('/api/emails?limit=20').then(r=>r.json()).then(r=> setOutbox(r?.data||[]));
+      // Refresh inquiries list to update status (add cache-busting param)
+      fetch(`/api/inquiries?limit=50&includeReplied=true&t=${Date.now()}`).then(r=>r.json()).then(res=>{
+        if(res?.inquiries) setInquiries(res.inquiries);
+      });
       setTimeout(() => setNotification(null), 5000);
     }else{
       setNotification({ type: 'error', message: '❌ Failed to send: '+(data?.error||'unknown') });
@@ -338,15 +464,262 @@ export default function EmployeePortalPage() {
     }
   };
 
-  const handleTrackShipment = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleTrackShipment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const shipment = shipments.find(s => s.id === trackingId);
+    const shipment = shipments.find(s => s.id === trackingId.trim());
     if (shipment) {
-      alert(`Shipment Found!\n\nID: ${shipment.id}\nCustomer: ${shipment.customerName}\nStatus: ${shipment.status}\nRoute: ${shipment.origin} → ${shipment.destination}`);
+      setTrackingResult(shipment);
+      // Load tracking updates for this shipment
+      try {
+        const res = await fetch(`/api/tracking?shipmentId=${shipment.dbId}&t=${Date.now()}`);
+        const data = await res.json();
+        if (data.ok && data.updates) {
+          setTrackingUpdates(data.updates);
+        }
+      } catch (err) {
+        console.error('Failed to load tracking updates:', err);
+        setTrackingUpdates([]);
+      }
     } else {
+      setTrackingResult(null);
+      setTrackingUpdates([]);
       alert('Shipment not found. Please check the tracking ID.');
     }
-    setTrackingId('');
+  };
+
+  const handleDeleteInquiry = async (inquiryId: string) => {
+    if (!confirm('Are you sure you want to remove this quote request from the list?')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/inquiries?id=${inquiryId}&action=hide`, {
+        method: 'PATCH',
+      });
+      const data = await res.json();
+      
+      if (data.ok) {
+        // Remove from local state
+        setInquiries(inquiries.filter(i => i.id !== inquiryId));
+        setNotification({ type: 'success', message: 'Quote request removed from list' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: 'Failed to remove quote request' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error removing inquiry:', err);
+      setNotification({ type: 'error', message: 'Failed to remove quote request' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDeleteEmail = async (emailId: string) => {
+    if (!confirm('Are you sure you want to remove this email from the list?')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/emails?id=${emailId}&action=hide`, {
+        method: 'PATCH',
+      });
+      const data = await res.json();
+      
+      if (data.ok) {
+        // Remove from local state and close modal
+        setOutbox(outbox.filter(e => e.id !== emailId));
+        setShowEmailModal(false);
+        setSelectedEmail(null);
+        setNotification({ type: 'success', message: 'Email removed from list' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: 'Failed to remove email' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error removing email:', err);
+      setNotification({ type: 'error', message: 'Failed to remove email' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleBulkDeleteInquiries = async () => {
+    if (selectedInquiries.length === 0) return;
+    if (!confirm(`Are you sure you want to remove ${selectedInquiries.length} quote request(s) from the list?`)) {
+      return;
+    }
+
+    try {
+      const promises = selectedInquiries.map(id => 
+        fetch(`/api/inquiries?id=${id}&action=hide`, { method: 'PATCH' })
+      );
+      const results = await Promise.all(promises);
+      const successful = results.filter(r => r.ok).length;
+
+      if (successful > 0) {
+        setInquiries(inquiries.filter(i => !selectedInquiries.includes(i.id)));
+        setSelectedInquiries([]);
+        setNotification({ type: 'success', message: `${successful} quote request(s) removed from list` });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: 'Failed to remove quote requests' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error removing inquiries:', err);
+      setNotification({ type: 'error', message: 'Failed to remove quote requests' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleBulkDeleteEmails = async () => {
+    if (selectedEmails.length === 0) return;
+    if (!confirm(`Are you sure you want to remove ${selectedEmails.length} email(s) from the list?`)) {
+      return;
+    }
+
+    try {
+      const promises = selectedEmails.map(id => 
+        fetch(`/api/emails?id=${id}&action=hide`, { method: 'PATCH' })
+      );
+      const results = await Promise.all(promises);
+      const successful = results.filter(r => r.ok).length;
+
+      if (successful > 0) {
+        setOutbox(outbox.filter(e => !selectedEmails.includes(e.id)));
+        setSelectedEmails([]);
+        setNotification({ type: 'success', message: `${successful} email(s) removed from list` });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: 'Failed to remove emails' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error removing emails:', err);
+      setNotification({ type: 'error', message: 'Failed to remove emails' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const toggleInquirySelection = (id: string) => {
+    setSelectedInquiries(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllInquiries = () => {
+    if (selectedInquiries.length === inquiries.length) {
+      setSelectedInquiries([]);
+    } else {
+      setSelectedInquiries(inquiries.map(i => i.id));
+    }
+  };
+
+  const toggleEmailSelection = (id: string) => {
+    setSelectedEmails(prev => 
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllEmails = () => {
+    if (selectedEmails.length === outbox.length) {
+      setSelectedEmails([]);
+    } else {
+      setSelectedEmails(outbox.map(e => e.id));
+    }
+  };
+
+  const handleDatabaseAccess = () => {
+    if (databasePassword === 'Asian@567') {
+      setDatabaseUnlocked(true);
+      loadDatabaseData('shipments');
+      setDatabasePassword('');
+    } else {
+      alert('Incorrect password');
+      setDatabasePassword('');
+    }
+  };
+
+  const loadDatabaseData = async (table: 'shipments'|'inquiries'|'emails'|'users') => {
+    setDatabaseLoading(true);
+    setDatabaseView(table);
+    try {
+      let endpoint = '';
+      switch(table) {
+        case 'shipments':
+          endpoint = '/api/shipments';
+          break;
+        case 'inquiries':
+          endpoint = '/api/database/inquiries';
+          break;
+        case 'emails':
+          endpoint = '/api/database/emails';
+          break;
+        case 'users':
+          endpoint = '/api/users';
+          break;
+      }
+      const res = await fetch(endpoint);
+      const data = await res.json();
+      if (table === 'inquiries') {
+        setDatabaseData(data.inquiries || []);
+      } else if (table === 'emails') {
+        setDatabaseData(data.data || []);
+      } else if (table === 'shipments') {
+        setDatabaseData(data.data || []);
+      } else {
+        setDatabaseData(data.users || []);
+      }
+    } catch (err) {
+      console.error('Failed to load database data:', err);
+      setDatabaseData([]);
+    }
+    setDatabaseLoading(false);
+  };
+
+  const handlePermanentDelete = async (record: any) => {
+    const confirmText = `⚠️ PERMANENT DELETE WARNING!\n\nThis will PERMANENTLY DELETE this record from the database.\nThis action CANNOT be undone!\n\nAre you absolutely sure?`;
+    
+    if (!confirm(confirmText)) {
+      return;
+    }
+
+    try {
+      let endpoint = '';
+      switch(databaseView) {
+        case 'shipments':
+          endpoint = `/api/shipments?id=${record.id}`;
+          break;
+        case 'inquiries':
+          endpoint = `/api/database/inquiries?id=${record.id}`;
+          break;
+        case 'emails':
+          endpoint = `/api/database/emails?id=${record.id}`;
+          break;
+        case 'users':
+          alert('Cannot delete users from this interface');
+          return;
+      }
+
+      const res = await fetch(endpoint, { method: 'DELETE' });
+      const data = await res.json();
+
+      if (data.ok) {
+        setNotification({ type: 'success', message: 'Record permanently deleted from database' });
+        setTimeout(() => setNotification(null), 3000);
+        setShowDbRecordModal(false);
+        setSelectedDbRecord(null);
+        // Reload the table data
+        loadDatabaseData(databaseView);
+      } else {
+        setNotification({ type: 'error', message: 'Failed to delete record' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error deleting record:', err);
+      setNotification({ type: 'error', message: 'Failed to delete record' });
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   const handleDeleteDocument = (id: number) => {
@@ -384,11 +757,28 @@ export default function EmployeePortalPage() {
   const handleReplyToQuote = (inquiry: any) => {
     const customerName = inquiry.name;
     const email = inquiry.email;
+    setReplyingToInquiryId(inquiry.id); // Track which inquiry we're replying to
     setEmailTo(email);
     setEmailSubject(`RE: Quote Request - ${customerName}`);
-    setEmailMessage(`Dear ${customerName},\n\nThank you for your quote request. We are pleased to provide you with a competitive quote for your logistics needs.\n\nBest regards,\nasianshippingthai Team`);
-    
-    // Scroll to email form
+    const details = [
+      inquiry.company ? `Company: ${inquiry.company}` : null,
+      inquiry.service ? `Service: ${String(inquiry.service).toUpperCase()}` : null,
+      inquiry.productType ? `Product: ${inquiry.productType}` : null,
+      inquiry.weight ? `Weight: ${inquiry.weight} ${inquiry.weightUnit || 'kg'}` : null,
+      inquiry.phone ? `Phone: ${inquiry.phone}` : null,
+      `Email: ${inquiry.email}`,
+    ].filter(Boolean).join('\n');
+    setEmailMessage(`Dear ${customerName},
+
+Thank you for your quote request. Below is a summary of your inquiry:
+
+${details}
+
+We will prepare the best possible rate and transit details for you. If anything above needs correction, please reply to this email.
+
+Best regards,
+Asian Shipping Thai Team`);
+    // Jump to compose form for a faster workflow
     setTimeout(() => {
       const emailForm = document.getElementById('email-compose-form');
       if (emailForm) {
@@ -399,11 +789,120 @@ export default function EmployeePortalPage() {
     }, 100);
   };
 
+  const handleCreateEmailFromCell = (inquiry: any) => {
+    handleReplyToQuote(inquiry);
+  };
+
+  const handleCreateShipmentFromInquiry = (inquiry: any) => {
+    setCreateShipmentFromInquiry(inquiry);
+    setActiveSection('add');
+    setTimeout(() => {
+      // Pre-fill form fields
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (form) {
+        (form.querySelector('[name="customerName"]') as HTMLInputElement).value = inquiry.name || '';
+        (form.querySelector('[name="customerEmail"]') as HTMLInputElement).value = inquiry.email || '';
+        if (inquiry.service === 'airfreight') {
+          (form.querySelector('[name="serviceType"]') as HTMLSelectElement).value = 'Airfreight';
+        } else if (inquiry.service === 'fcl') {
+          (form.querySelector('[name="serviceType"]') as HTMLSelectElement).value = 'Seafreight FCL';
+        } else if (inquiry.service === 'lcl') {
+          (form.querySelector('[name="serviceType"]') as HTMLSelectElement).value = 'Seafreight LCL';
+        }
+        if (inquiry.weight) {
+          (form.querySelector('[name="weight"]') as HTMLInputElement).value = String(inquiry.weight);
+        }
+        if (inquiry.productType) {
+          (form.querySelector('[name="containerContents"]') as HTMLInputElement).value = inquiry.productType;
+        }
+        setNotification({ type: 'success', message: `📦 Shipment form pre-filled for ${inquiry.name}` });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }, 200);
+  };
+
   const handleComposeEmail = () => {
     setEmailTo('');
     setEmailSubject('');
     setEmailMessage('');
-    alert('Email form cleared. Scroll down to compose a new email.');
+    setReplyingToInquiryId(null); // Clear inquiry ID for new email
+    setActiveSection('emails');
+    setTimeout(() => {
+      const emailForm = document.getElementById('email-compose-form');
+      if (emailForm) {
+        emailForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setNotification({ type: 'success', message: '📧 Ready to compose new email' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }, 100);
+  };
+
+  // Tracking functions
+  const loadTrackingUpdates = async (shipmentId: string) => {
+    try {
+      const res = await fetch(`/api/tracking?shipmentId=${shipmentId}`);
+      const data = await res.json();
+      setTrackingUpdates(data);
+    } catch (error) {
+      console.error('Failed to load tracking updates:', error);
+    }
+  };
+
+  const handleAddTrackingUpdate = async (shipmentId: string) => {
+    if (!newTrackingStatus.trim()) {
+      alert('Please enter a status');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/tracking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipmentId,
+          status: newTrackingStatus,
+          location: newTrackingLocation || null,
+          description: newTrackingDescription || null,
+        }),
+      });
+
+      if (res.ok) {
+        await loadTrackingUpdates(shipmentId);
+        setNewTrackingStatus('');
+        setNewTrackingLocation('');
+        setNewTrackingDescription('');
+        setNotification({ type: 'success', message: '✅ Tracking update added' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        throw new Error('Failed to add tracking update');
+      }
+    } catch (error) {
+      console.error('Error adding tracking update:', error);
+      setNotification({ type: 'error', message: '❌ Failed to add tracking update' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDeleteTrackingUpdate = async (updateId: string, shipmentId: string) => {
+    if (!confirm('Delete this tracking update?')) return;
+
+    try {
+      const res = await fetch(`/api/tracking?id=${updateId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        await loadTrackingUpdates(shipmentId);
+        setNotification({ type: 'success', message: '✅ Tracking update deleted' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        throw new Error('Failed to delete tracking update');
+      }
+    } catch (error) {
+      console.error('Error deleting tracking update:', error);
+      setNotification({ type: 'error', message: '❌ Failed to delete tracking update' });
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   return (
@@ -492,7 +991,9 @@ export default function EmployeePortalPage() {
               <div className="flex items-center">
                 <span className="mr-3 text-lg">✉️</span> Customer Quotes
               </div>
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">5</span>
+              {inquiries.length > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{inquiries.length}</span>
+              )}
           </button>
           <button
             className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
@@ -503,6 +1004,12 @@ export default function EmployeePortalPage() {
             onClick={() => setActiveSection('documents')}
           >
               <span className="mr-3 text-lg">📄</span> Documents
+          </button>
+          <button
+            className="flex items-center px-3 py-2 rounded-md w-full text-left transition text-gray-300 hover:bg-gray-800"
+            onClick={() => setShowDatabaseModal(true)}
+          >
+              <span className="mr-3 text-lg">🗄️</span> Database
           </button>
           <button
             className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
@@ -716,7 +1223,7 @@ export default function EmployeePortalPage() {
               >
                 <div className="text-4xl mb-3 group-hover:scale-110 transition">✉️</div>
                 <h3 className="text-xl font-bold mb-2">Quotes</h3>
-                <p className="text-purple-100 text-sm">5 new requests</p>
+                <p className="text-purple-100 text-sm">{inquiries.length} {inquiries.length === 1 ? 'request' : 'requests'}</p>
               </button>
               <button
                 onClick={() => setActiveSection('tracking')}
@@ -747,58 +1254,9 @@ export default function EmployeePortalPage() {
                     <option>This Month</option>
                   </select>
                 </div>
-                <div className="space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
-                        ✓
-                      </div>
-                      <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
-                    </div>
-                    <div className="flex-1 pb-6">
-                      <p className="font-semibold">Shipment Delivered</p>
-                      <p className="text-sm text-gray-600">TRK-2025-001 delivered to customer</p>
-                      <p className="text-xs text-gray-400 mt-1">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                        +
-                      </div>
-                      <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
-                    </div>
-                    <div className="flex-1 pb-6">
-                      <p className="font-semibold">New Shipment Created</p>
-                      <p className="text-sm text-gray-600">TRK-2025-003 - Fashion Imports Co</p>
-                      <p className="text-xs text-gray-400 mt-1">4 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold">
-                        💬
-                      </div>
-                      <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
-                    </div>
-                    <div className="flex-1 pb-6">
-                      <p className="font-semibold">Quote Request Received</p>
-                      <p className="text-sm text-gray-600">Tech Solutions Inc - Airfreight</p>
-                      <p className="text-xs text-gray-400 mt-1">5 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold">
-                        💰
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">Payment Received</p>
-                      <p className="text-sm text-gray-600">$2,450.00 from ABC Electronics</p>
-                      <p className="text-xs text-gray-400 mt-1">6 hours ago</p>
-                    </div>
-                  </div>
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No recent activity</p>
+                  <p className="text-xs mt-1">Activity will appear here as you work</p>
                 </div>
               </div>
 
@@ -808,18 +1266,21 @@ export default function EmployeePortalPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-xl font-bold mb-4">Pending Actions</h3>
                   <div className="space-y-3">
-                    <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                      <p className="font-semibold text-sm text-red-700">Urgent</p>
-                      <p className="text-xs text-gray-600 mt-1">1 shipment needs customs docs</p>
-                    </div>
-                    <div className="p-3 bg-orange-50 border-l-4 border-orange-500 rounded">
-                      <p className="font-semibold text-sm text-orange-700">Follow-up</p>
-                      <p className="text-xs text-gray-600 mt-1">5 quote requests to respond</p>
-                    </div>
-                    <div className="p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                      <p className="font-semibold text-sm text-yellow-700">Review</p>
-                      <p className="text-xs text-gray-600 mt-1">2 pending payments</p>
-                    </div>
+                    {inquiries.filter(i => i.status === 'new' || !i.status).length > 0 && (
+                      <div className="p-3 bg-orange-50 border-l-4 border-orange-500 rounded">
+                        <p className="font-semibold text-sm text-orange-700">Follow-up</p>
+                        <p className="text-xs text-gray-600 mt-1">{inquiries.filter(i => i.status === 'new' || !i.status).length} quote requests to respond</p>
+                      </div>
+                    )}
+                    {shipments.filter(s => s.paymentStatus === 'Pending').length > 0 && (
+                      <div className="p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+                        <p className="font-semibold text-sm text-yellow-700">Review</p>
+                        <p className="text-xs text-gray-600 mt-1">{shipments.filter(s => s.paymentStatus === 'Pending').length} pending payments</p>
+                      </div>
+                    )}
+                    {inquiries.filter(i => i.status === 'new' || !i.status).length === 0 && shipments.filter(s => s.paymentStatus === 'Pending').length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No pending actions</p>
+                    )}
                   </div>
                 </div>
 
@@ -830,10 +1291,10 @@ export default function EmployeePortalPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Shipments</span>
-                        <span className="font-bold">24</span>
+                        <span className="font-bold">{shipments.length}</span>
                       </div>
                       <div className="bg-white/20 rounded-full h-2">
-                        <div className="bg-white rounded-full h-2 w-4/5"></div>
+                        <div className="bg-white rounded-full h-2" style={{width: `${Math.min(100, (shipments.length / 30) * 100)}%`}}></div>
                       </div>
                     </div>
                     <div>
@@ -1042,10 +1503,21 @@ export default function EmployeePortalPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${shipment.price.toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => setEditingShipment(shipment)}
+                            onClick={() => {
+                              setEditingShipment(shipment);
+                              if (shipment.dbId) {
+                                loadTrackingUpdates(shipment.dbId);
+                              }
+                            }}
                             className="text-indigo-600 hover:text-indigo-900 mr-3"
                           >
-                            Edit
+                            Edit & Track
+                          </button>
+                          <button 
+                            onClick={() => window.open(`/tracking/${shipment.id}`, '_blank')}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            View
                           </button>
                           <button 
                             onClick={() => handleDeleteShipment(shipment.id)}
@@ -1063,14 +1535,16 @@ export default function EmployeePortalPage() {
 
             {/* Edit Modal */}
             {editingShipment && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                  className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
                 >
                   <h3 className="text-2xl font-bold mb-6">Edit Shipment: {editingShipment.id}</h3>
-                  <form onSubmit={handleUpdateShipment} className="space-y-4">
+                  
+                  {/* Shipment Details Form */}
+                  <form onSubmit={handleUpdateShipment} className="space-y-4 mb-8">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -1125,6 +1599,116 @@ export default function EmployeePortalPage() {
                       </button>
                     </div>
                   </form>
+
+                  {/* Tracking Timeline Section */}
+                  <div className="border-t pt-8">
+                    <h4 className="text-xl font-bold mb-4">Tracking Timeline</h4>
+                    
+                    {/* Add New Tracking Update */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <h5 className="font-semibold mb-3">Add Tracking Update</h5>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                          <input
+                            type="text"
+                            value={newTrackingStatus}
+                            onChange={(e) => setNewTrackingStatus(e.target.value)}
+                            placeholder="e.g., Package Picked Up, In Transit, Customs Clearance"
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                            <input
+                              type="text"
+                              value={newTrackingLocation}
+                              onChange={(e) => setNewTrackingLocation(e.target.value)}
+                              placeholder="e.g., Bangkok, Thailand"
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <input
+                              type="text"
+                              value={newTrackingDescription}
+                              onChange={(e) => setNewTrackingDescription(e.target.value)}
+                              placeholder="Additional details"
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddTrackingUpdate(editingShipment.dbId || editingShipment.id)}
+                          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+                        >
+                          + Add Tracking Update
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Tracking Timeline Display */}
+                    <div className="space-y-4">
+                      {trackingUpdates.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No tracking updates yet</p>
+                      ) : (
+                        <div className="relative">
+                          {/* Vertical timeline line */}
+                          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                          
+                          {trackingUpdates.map((update, index) => (
+                            <div key={update.id} className="relative pl-12 pb-6">
+                              {/* Timeline dot */}
+                              <div className={`absolute left-2 top-0 w-4 h-4 rounded-full border-2 ${
+                                update.isActive 
+                                  ? 'bg-green-500 border-green-600' 
+                                  : 'bg-red-500 border-red-600'
+                              }`}></div>
+                              
+                              {/* Update content */}
+                              <div className={`bg-white border-2 rounded-lg p-4 ${
+                                update.isActive 
+                                  ? 'border-green-500' 
+                                  : 'border-red-300'
+                              }`}>
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h6 className="font-bold text-lg">{update.status}</h6>
+                                      {update.isActive && (
+                                        <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                                          CURRENT
+                                        </span>
+                                      )}
+                                    </div>
+                                    {update.location && (
+                                      <p className="text-sm text-gray-600">📍 {update.location}</p>
+                                    )}
+                                    {update.description && (
+                                      <p className="text-sm text-gray-600 mt-1">{update.description}</p>
+                                    )}
+                                    <p className="text-xs text-gray-400 mt-2">
+                                      {new Date(update.createdAt).toLocaleString()}
+                                      {update.createdBy && ` • by ${update.createdBy}`}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteTrackingUpdate(update.id, editingShipment.dbId || editingShipment.id)}
+                                    className="text-red-600 hover:text-red-800 text-sm font-medium ml-4"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
               </div>
             )}
@@ -1399,63 +1983,108 @@ export default function EmployeePortalPage() {
                 </div>
               </form>
 
-              {/* Sample Tracking Result */}
-              <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-bold mb-4">Shipment Details: TRK-2025-001</h3>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm text-gray-500">Customer</p>
-                    <p className="font-semibold">ABC Electronics Ltd</p>
+              {/* Tracking Results */}
+              {trackingResult ? (
+                <div className="mt-8">
+                  {/* Shipment Info Card */}
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-200">
+                    <h3 className="text-xl font-bold mb-4">Shipment Details: {trackingResult.id}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Customer</p>
+                        <p className="font-semibold">{trackingResult.customerName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Current Status</p>
+                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                          trackingResult.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                          trackingResult.status === 'In Transit' ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {trackingResult.status}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Service Type</p>
+                        <p className="font-semibold">{trackingResult.serviceType}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Route</p>
+                        <p className="font-semibold">{trackingResult.origin} → {trackingResult.destination}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Weight</p>
+                        <p className="font-semibold">{trackingResult.weight} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Booking Date</p>
+                        <p className="font-semibold">{trackingResult.bookingDate}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <p className="font-semibold text-orange-600">In Transit</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Origin</p>
-                    <p className="font-semibold">Shanghai, China</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Destination</p>
-                    <p className="font-semibold">Los Angeles, USA</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Weight</p>
-                    <p className="font-semibold">125.5 kg</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Estimated Delivery</p>
-                    <p className="font-semibold">Nov 15, 2025</p>
-                  </div>
-                </div>
 
-                <div className="border-t pt-6">
-                  <h4 className="font-semibold mb-4">Tracking History</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">Package Picked Up</p>
-                        <p className="text-sm text-gray-500">Nov 1, 2025 - Shanghai</p>
+                  {/* Tracking Timeline */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h4 className="text-xl font-bold mb-6">📍 Tracking Timeline</h4>
+                    
+                    {trackingUpdates.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No tracking updates available yet</p>
+                    ) : (
+                      <div className="relative">
+                        {/* Vertical timeline line */}
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                        
+                        {trackingUpdates.map((update, index) => (
+                          <div key={update.id} className="relative pl-12 pb-8 last:pb-0">
+                            {/* Timeline dot */}
+                            <div className={`absolute left-2 top-0 w-4 h-4 rounded-full border-2 ${
+                              update.isActive 
+                                ? 'bg-green-500 border-green-600 animate-pulse' 
+                                : 'bg-red-500 border-red-600'
+                            }`}></div>
+                            
+                            {/* Update content */}
+                            <div className={`bg-white border-2 rounded-lg p-4 shadow-sm ${
+                              update.isActive 
+                                ? 'border-green-500 shadow-green-100' 
+                                : 'border-gray-200'
+                            }`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h6 className="font-bold text-lg text-gray-900">{update.status}</h6>
+                                    {update.isActive && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                                        CURRENT
+                                      </span>
+                                    )}
+                                  </div>
+                                  {update.location && (
+                                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                                      <span>📍</span> {update.location}
+                                    </p>
+                                  )}
+                                  {update.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{update.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    {new Date(update.createdAt).toLocaleString()}
+                                    {update.createdBy && ` • by ${update.createdBy}`}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">In Transit to Port</p>
-                        <p className="text-sm text-gray-500">Nov 3, 2025 - Shanghai Port</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-orange-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">In Transit (Sea)</p>
-                        <p className="text-sm text-gray-500">Nov 5, 2025 - Pacific Ocean</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-8 p-6 bg-gray-50 rounded-lg text-center">
+                  <p className="text-gray-500">Enter a tracking ID to see shipment details</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -1552,7 +2181,7 @@ export default function EmployeePortalPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                       <input
                         type="email"
-                        defaultValue="employee@asianlogistics.com"
+                        defaultValue="employee@asianshippingthai.com"
                         className="w-full border border-gray-300 rounded-lg px-4 py-2"
                       />
                     </div>
@@ -1653,7 +2282,17 @@ export default function EmployeePortalPage() {
             {/* Quote Requests Table */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
               <div className="p-6 border-b flex justify-between items-center">
-                <h3 className="text-xl font-bold">Quote Requests ({inquiries.length})</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-xl font-bold">Quote Requests ({inquiries.length})</h3>
+                  {selectedInquiries.length > 0 && (
+                    <button
+                      onClick={handleBulkDeleteInquiries}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition text-sm"
+                    >
+                      Remove Selected ({selectedInquiries.length})
+                    </button>
+                  )}
+                </div>
                 <button 
                   onClick={handleComposeEmail}
                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
@@ -1665,6 +2304,14 @@ export default function EmployeePortalPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
+                      <th className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedInquiries.length === inquiries.length && inquiries.length > 0}
+                          onChange={toggleAllInquiries}
+                          className="w-4 h-4 cursor-pointer"
+                        />
+                      </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer Name</th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
@@ -1677,13 +2324,22 @@ export default function EmployeePortalPage() {
                   <tbody>
                     {inquiries.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                           No inquiries yet. Contact form submissions will appear here.
                         </td>
                       </tr>
                     ) : (
                       inquiries.map((inquiry) => (
                         <tr key={inquiry.id} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedInquiries.includes(inquiry.id)}
+                              onChange={() => toggleInquirySelection(inquiry.id)}
+                              className="w-4 h-4 cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
                           <td className="px-6 py-4 text-sm">
                             {new Date(inquiry.createdAt).toLocaleDateString('en-US', { 
                               month: 'short', 
@@ -1695,7 +2351,9 @@ export default function EmployeePortalPage() {
                             {inquiry.name}
                             {inquiry.company && <div className="text-xs text-gray-500">{inquiry.company}</div>}
                           </td>
-                          <td className="px-6 py-4 text-sm">{inquiry.email}</td>
+                          <td className="px-6 py-4 text-sm">
+                            {inquiry.email}
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                               inquiry.service === 'airfreight' ? 'bg-blue-100 text-blue-700' :
@@ -1728,18 +2386,45 @@ export default function EmployeePortalPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button 
-                              onClick={() => handleViewQuote(inquiry)}
-                              className="text-blue-600 hover:text-blue-800 mr-3 text-sm"
-                            >
-                              View
-                            </button>
-                            <button 
-                              onClick={() => handleReplyToQuote(inquiry)}
-                              className="text-green-600 hover:text-green-800 text-sm"
-                            >
-                              Reply
-                            </button>
+                            <div className="flex gap-2 justify-center">
+                              {inquiry.status === 'replied' ? (
+                                <>
+                                  <button
+                                    onClick={() => handleCreateShipmentFromInquiry(inquiry)}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                                  >
+                                    Create Shipment
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteInquiry(inquiry.id)}
+                                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button 
+                                    onClick={() => handleViewQuote(inquiry)}
+                                    className="text-blue-600 hover:text-blue-800 mr-3 text-sm"
+                                  >
+                                    View
+                                  </button>
+                                  <button 
+                                    onClick={() => handleReplyToQuote(inquiry)}
+                                    className="text-green-600 hover:text-green-800 text-sm"
+                                  >
+                                    Reply
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteInquiry(inquiry.id)}
+                                    className="text-red-600 hover:text-red-800 ml-3 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1825,11 +2510,29 @@ export default function EmployeePortalPage() {
 
             {/* Outbox */}
             <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
-              <h3 className="text-xl font-bold mb-4">Recent Emails</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Recent Emails</h3>
+                {selectedEmails.length > 0 && (
+                  <button
+                    onClick={handleBulkDeleteEmails}
+                    className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition text-sm"
+                  >
+                    Remove Selected ({selectedEmails.length})
+                  </button>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100">
                     <tr>
+                      <th className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedEmails.length === outbox.length && outbox.length > 0}
+                          onChange={toggleAllEmails}
+                          className="w-4 h-4 cursor-pointer"
+                        />
+                      </th>
                       <th className="px-4 py-2 text-left">Date</th>
                       <th className="px-4 py-2 text-left">From</th>
                       <th className="px-4 py-2 text-left">To</th>
@@ -1839,12 +2542,62 @@ export default function EmployeePortalPage() {
                   </thead>
                   <tbody>
                     {outbox.map((m)=> (
-                      <tr key={m.id} className="border-t">
-                        <td className="px-4 py-2">{new Date(m.createdAt).toLocaleString()}</td>
-                        <td className="px-4 py-2">{m.from}</td>
-                        <td className="px-4 py-2">{m.to}</td>
-                        <td className="px-4 py-2 truncate max-w-[300px]">{m.subject}</td>
-                        <td className="px-4 py-2">
+                      <tr 
+                        key={m.id} 
+                        className="border-t hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedEmails.includes(m.id)}
+                            onChange={() => toggleEmailSelection(m.id)}
+                            className="w-4 h-4 cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                        <td 
+                          className="px-4 py-2 cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmail(m);
+                            setShowEmailModal(true);
+                          }}
+                        >
+                          {new Date(m.createdAt).toLocaleString()}
+                        </td>
+                        <td 
+                          className="px-4 py-2 cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmail(m);
+                            setShowEmailModal(true);
+                          }}
+                        >
+                          {m.from}
+                        </td>
+                        <td 
+                          className="px-4 py-2 cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmail(m);
+                            setShowEmailModal(true);
+                          }}
+                        >
+                          {m.to}
+                        </td>
+                        <td 
+                          className="px-4 py-2 truncate max-w-[300px] cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmail(m);
+                            setShowEmailModal(true);
+                          }}
+                        >
+                          {m.subject}
+                        </td>
+                        <td 
+                          className="px-4 py-2 cursor-pointer"
+                          onClick={() => {
+                            setSelectedEmail(m);
+                            setShowEmailModal(true);
+                          }}
+                        >
                           <span className={`px-2 py-1 rounded-full text-xs ${m.status==='sent'?'bg-green-100 text-green-700': m.status==='failed'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{m.status}</span>
                         </td>
                       </tr>
@@ -1954,7 +2707,7 @@ export default function EmployeePortalPage() {
 
                 <div className="border-t pt-6 text-center">
                   <p className="text-sm text-gray-500">
-                    Need help? Contact support at <a href="mailto:support@asianlogistics.com" className="text-red-600 hover:underline">support@asianlogistics.com</a>
+                    Need help? Contact support at <a href="mailto:info@asianshippingthai.com" className="text-red-600 hover:underline">info@asianshippingthai.com</a>
                   </p>
                 </div>
               </div>
@@ -1962,6 +2715,445 @@ export default function EmployeePortalPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Email Detail Modal */}
+      {showEmailModal && selectedEmail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowEmailModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-start">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedEmail.subject}</h2>
+                <div className="flex gap-4 text-sm text-gray-600">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    selectedEmail.status === 'sent' ? 'bg-green-100 text-green-700' :
+                    selectedEmail.status === 'failed' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {selectedEmail.status}
+                  </span>
+                  <span>{selectedEmail.direction === 'outgoing' ? '📤 Outgoing' : '📥 Incoming'}</span>
+                  <span>{new Date(selectedEmail.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="text-gray-400 hover:text-gray-600 ml-4"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="grid grid-cols-4 gap-2">
+                  <span className="font-semibold text-gray-700">From:</span>
+                  <span className="col-span-3 text-gray-900">{selectedEmail.from}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <span className="font-semibold text-gray-700">To:</span>
+                  <span className="col-span-3 text-gray-900">{selectedEmail.to}</span>
+                </div>
+                {selectedEmail.sentAt && (
+                  <div className="grid grid-cols-4 gap-2">
+                    <span className="font-semibold text-gray-700">Sent:</span>
+                    <span className="col-span-3 text-gray-900">{new Date(selectedEmail.sentAt).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-700 mb-3">Message:</h3>
+                {selectedEmail.html ? (
+                  <div 
+                    className="prose max-w-none bg-white p-4 rounded-lg border"
+                    dangerouslySetInnerHTML={{ __html: selectedEmail.html }}
+                  />
+                ) : (
+                  <div className="bg-white p-4 rounded-lg border whitespace-pre-wrap">
+                    {selectedEmail.text || 'No message content'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t p-4 flex justify-between items-center">
+              <div className="flex gap-3">
+                {selectedEmail.direction === 'outgoing' && selectedEmail.subject?.includes('RE: Quote Request') && (
+                  (() => {
+                    // Find the inquiry associated with this email
+                    const inquiry = inquiries.find(inq => 
+                      inq.email === selectedEmail.to && inq.status === 'replied'
+                    );
+                    return inquiry ? (
+                      <button
+                        onClick={() => {
+                          setShowEmailModal(false);
+                          handleCreateShipmentFromInquiry(inquiry);
+                        }}
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+                      >
+                        📦 Create Shipment
+                      </button>
+                    ) : null;
+                  })()
+                )}
+                <button
+                  onClick={() => handleDeleteEmail(selectedEmail.id)}
+                  className="bg-orange-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-700 transition"
+                >
+                  Remove
+                </button>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Database Viewer Modal */}
+      {showDatabaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => {
+          setShowDatabaseModal(false);
+          setDatabaseUnlocked(false);
+          setDatabasePassword('');
+        }}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">🗄️ Database Viewer</h2>
+              <button
+                onClick={() => {
+                  setShowDatabaseModal(false);
+                  setDatabaseUnlocked(false);
+                  setDatabasePassword('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {!databaseUnlocked ? (
+              <div className="p-12">
+                <div className="max-w-md mx-auto">
+                  <div className="text-center mb-6">
+                    <div className="text-6xl mb-4">🔒</div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Password Required</h3>
+                    <p className="text-gray-600">Enter the database access password to continue</p>
+                  </div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleDatabaseAccess(); }} className="space-y-4">
+                    <input
+                      type="password"
+                      value={databasePassword}
+                      onChange={(e) => setDatabasePassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-center text-lg"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+                    >
+                      Unlock Database
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6">
+                {/* Table Selector */}
+                <div className="flex gap-2 mb-6 overflow-x-auto">
+                  <button
+                    onClick={() => loadDatabaseData('shipments')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${
+                      databaseView === 'shipments' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    📦 Shipments ({databaseView === 'shipments' ? databaseData.length : '...'})
+                  </button>
+                  <button
+                    onClick={() => loadDatabaseData('inquiries')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${
+                      databaseView === 'inquiries' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    ✉️ Inquiries ({databaseView === 'inquiries' ? databaseData.length : '...'})
+                  </button>
+                  <button
+                    onClick={() => loadDatabaseData('emails')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${
+                      databaseView === 'emails' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    📧 Emails ({databaseView === 'emails' ? databaseData.length : '...'})
+                  </button>
+                </div>
+
+                {/* Data Display */}
+                {databaseLoading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                    <p className="mt-4 text-gray-600">Loading data...</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="mb-4 text-sm text-gray-600">
+                      Total Records: <span className="font-bold">{databaseData.length}</span>
+                      {databaseView === 'inquiries' && (
+                        <span className="ml-4">
+                          Hidden: <span className="font-bold text-orange-600">{databaseData.filter((d: any) => d.hidden).length}</span>
+                        </span>
+                      )}
+                      {databaseView === 'emails' && (
+                        <span className="ml-4">
+                          Hidden: <span className="font-bold text-orange-600">{databaseData.filter((d: any) => d.hidden).length}</span>
+                        </span>
+                      )}
+                    </div>
+                    <table className="w-full text-sm border">
+                      <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                          {databaseView === 'shipments' && (
+                            <>
+                              <th className="px-3 py-2 text-left border">Code</th>
+                              <th className="px-3 py-2 text-left border">Customer</th>
+                              <th className="px-3 py-2 text-left border">Email</th>
+                              <th className="px-3 py-2 text-left border">Origin → Dest</th>
+                              <th className="px-3 py-2 text-left border">Service</th>
+                              <th className="px-3 py-2 text-left border">Status</th>
+                              <th className="px-3 py-2 text-left border">Weight</th>
+                              <th className="px-3 py-2 text-left border">Price</th>
+                              <th className="px-3 py-2 text-left border">Created</th>
+                            </>
+                          )}
+                          {databaseView === 'inquiries' && (
+                            <>
+                              <th className="px-3 py-2 text-left border">Name</th>
+                              <th className="px-3 py-2 text-left border">Email</th>
+                              <th className="px-3 py-2 text-left border">Phone</th>
+                              <th className="px-3 py-2 text-left border">Company</th>
+                              <th className="px-3 py-2 text-left border">Service</th>
+                              <th className="px-3 py-2 text-left border">Product</th>
+                              <th className="px-3 py-2 text-left border">Weight</th>
+                              <th className="px-3 py-2 text-left border">Status</th>
+                              <th className="px-3 py-2 text-left border">Hidden</th>
+                              <th className="px-3 py-2 text-left border">Created</th>
+                            </>
+                          )}
+                          {databaseView === 'emails' && (
+                            <>
+                              <th className="px-3 py-2 text-left border">From</th>
+                              <th className="px-3 py-2 text-left border">To</th>
+                              <th className="px-3 py-2 text-left border">Subject</th>
+                              <th className="px-3 py-2 text-left border">Status</th>
+                              <th className="px-3 py-2 text-left border">Hidden</th>
+                              <th className="px-3 py-2 text-left border">Created</th>
+                              <th className="px-3 py-2 text-left border">Sent</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {databaseData.map((row: any) => (
+                          <tr 
+                            key={row.id} 
+                            className={`border-t hover:bg-blue-50 cursor-pointer transition-colors ${row.hidden ? 'bg-orange-50' : ''}`}
+                            onClick={() => {
+                              setSelectedDbRecord(row);
+                              setShowDbRecordModal(true);
+                            }}
+                          >
+                            {databaseView === 'shipments' && (
+                              <>
+                                <td className="px-3 py-2 border font-mono text-xs">{row.code}</td>
+                                <td className="px-3 py-2 border">{row.customerName}</td>
+                                <td className="px-3 py-2 border text-xs">{row.customerEmail}</td>
+                                <td className="px-3 py-2 border text-xs">{row.origin} → {row.destination}</td>
+                                <td className="px-3 py-2 border">{row.serviceType}</td>
+                                <td className="px-3 py-2 border">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    row.status === 'Delivered' ? 'bg-green-100 text-green-700' :
+                                    row.status === 'In Transit' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-yellow-100 text-yellow-700'
+                                  }`}>{row.status}</span>
+                                </td>
+                                <td className="px-3 py-2 border">{row.weight} kg</td>
+                                <td className="px-3 py-2 border">${row.price}</td>
+                                <td className="px-3 py-2 border text-xs">{new Date(row.createdAt).toLocaleDateString()}</td>
+                              </>
+                            )}
+                            {databaseView === 'inquiries' && (
+                              <>
+                                <td className="px-3 py-2 border">{row.name}</td>
+                                <td className="px-3 py-2 border text-xs">{row.email}</td>
+                                <td className="px-3 py-2 border text-xs">{row.phone || '-'}</td>
+                                <td className="px-3 py-2 border text-xs">{row.company || '-'}</td>
+                                <td className="px-3 py-2 border">{row.service}</td>
+                                <td className="px-3 py-2 border text-xs">{row.productType || '-'}</td>
+                                <td className="px-3 py-2 border">{row.weight ? `${row.weight} ${row.weightUnit || 'kg'}` : '-'}</td>
+                                <td className="px-3 py-2 border">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    row.status === 'responded' ? 'bg-green-100 text-green-700' :
+                                    row.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-orange-100 text-orange-700'
+                                  }`}>{row.status}</span>
+                                </td>
+                                <td className="px-3 py-2 border text-center">
+                                  {row.hidden ? <span className="text-orange-600 font-bold">✓</span> : '-'}
+                                </td>
+                                <td className="px-3 py-2 border text-xs">{new Date(row.createdAt).toLocaleDateString()}</td>
+                              </>
+                            )}
+                            {databaseView === 'emails' && (
+                              <>
+                                <td className="px-3 py-2 border text-xs">{row.from}</td>
+                                <td className="px-3 py-2 border text-xs">{row.to}</td>
+                                <td className="px-3 py-2 border">{row.subject}</td>
+                                <td className="px-3 py-2 border">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    row.status === 'sent' ? 'bg-green-100 text-green-700' :
+                                    row.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                    'bg-yellow-100 text-yellow-700'
+                                  }`}>{row.status}</span>
+                                </td>
+                                <td className="px-3 py-2 border text-center">
+                                  {row.hidden ? <span className="text-orange-600 font-bold">✓</span> : '-'}
+                                </td>
+                                <td className="px-3 py-2 border text-xs">{new Date(row.createdAt).toLocaleDateString()}</td>
+                                <td className="px-3 py-2 border text-xs">{row.sentAt ? new Date(row.sentAt).toLocaleDateString() : '-'}</td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {databaseData.length === 0 && (
+                      <div className="text-center py-12 text-gray-500">
+                        No data found in this table
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Database Record Detail Modal */}
+      {showDbRecordModal && selectedDbRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4" onClick={() => setShowDbRecordModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {databaseView === 'shipments' && `📦 Shipment: ${selectedDbRecord.code}`}
+                {databaseView === 'inquiries' && `✉️ Inquiry: ${selectedDbRecord.name}`}
+                {databaseView === 'emails' && `📧 Email: ${selectedDbRecord.subject}`}
+              </h2>
+              <button
+                onClick={() => setShowDbRecordModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              {selectedDbRecord.hidden && (
+                <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg text-orange-800 font-semibold">
+                  ⚠️ This record is hidden from the main view
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(selectedDbRecord).map(([key, value]) => {
+                  // Skip certain fields or format them nicely
+                  if (key === 'id' || key === 'version') return null;
+                  
+                  let displayValue: any = value;
+                  let displayKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  
+                  // Format dates
+                  if (key.includes('At') || key.includes('Date')) {
+                    try {
+                      displayValue = value ? new Date(value as string).toLocaleString() : '-';
+                    } catch {
+                      displayValue = value || '-';
+                    }
+                  }
+                  
+                  // Format booleans
+                  if (typeof value === 'boolean') {
+                    displayValue = value ? '✓ Yes' : '✗ No';
+                  }
+                  
+                  // Format nulls
+                  if (value === null || value === undefined || value === '') {
+                    displayValue = '-';
+                  }
+
+                  // Special handling for long text fields
+                  const isLongText = key === 'message' || key === 'text' || key === 'html' || key === 'description' || key === 'containerContents';
+                  
+                  return (
+                    <div key={key} className={isLongText ? 'col-span-2' : ''}>
+                      <div className={`${isLongText ? 'bg-gray-50' : 'bg-white'} border rounded-lg p-4`}>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">{displayKey}</p>
+                        {key === 'html' && value ? (
+                          <div 
+                            className="prose max-w-none text-sm"
+                            dangerouslySetInnerHTML={{ __html: value as string }}
+                          />
+                        ) : (
+                          <p className={`text-gray-900 ${isLongText ? 'whitespace-pre-wrap text-sm' : 'font-medium'}`}>
+                            {String(displayValue)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Raw JSON View (collapsible) */}
+              <details className="mt-6">
+                <summary className="cursor-pointer text-sm font-semibold text-gray-600 hover:text-gray-800 p-3 bg-gray-100 rounded-lg">
+                  🔍 View Raw JSON Data
+                </summary>
+                <pre className="mt-2 p-4 bg-gray-900 text-green-400 rounded-lg overflow-x-auto text-xs font-mono">
+                  {JSON.stringify(selectedDbRecord, null, 2)}
+                </pre>
+              </details>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t p-4 flex justify-between items-center">
+              <button
+                onClick={() => handlePermanentDelete(selectedDbRecord)}
+                className="bg-red-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-800 transition flex items-center gap-2"
+                disabled={databaseView === 'users'}
+              >
+                🗑️ Permanent Delete
+              </button>
+              <button
+                onClick={() => setShowDbRecordModal(false)}
+                className="bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </ErrorBoundary>
   );

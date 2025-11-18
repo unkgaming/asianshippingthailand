@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 interface User {
   id: string;
@@ -24,86 +25,41 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, status } = useSession();
+  const isLoading = status === 'loading';
 
-  // Load user from localStorage on mount
+  // Bridge NextAuth session to legacy user shape
   useEffect(() => {
-    const storedUser = localStorage.getItem('logistix_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('logistix_user');
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  // Save user to localStorage whenever it changes
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('logistix_user', JSON.stringify(user));
+    if (session?.user) {
+      const s = session.user as any;
+      setUser({
+        id: s.id || s.email || 'unknown',
+        email: s.email,
+        name: s.name || s.email?.split('@')[0] || 'User',
+        avatar: s.image,
+        provider: 'google', // or 'email' (we can't easily distinguish here without extra field)
+        role: s.role || 'customer'
+      });
     } else {
-      localStorage.removeItem('logistix_user');
+      setUser(null);
     }
-  }, [user]);
+  }, [session]);
 
   const login = async (email: string, password: string) => {
-    // Mock login - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // In production, validate against backend
-    // For now, accept any email/password
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email: email,
-      name: email.split('@')[0],
-      provider: 'email',
-      role: 'customer'
-    };
-    
-    setUser(mockUser);
+    await signIn('credentials', { email, password, callbackUrl: '/' });
   };
 
   const employeeLogin = async (email: string, password: string) => {
-    // Mock employee login - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Check if employee credentials (simple check for demo)
-    // In production, validate against backend with proper security
-    if (email.includes('admin') || email.includes('employee') || password === 'employee123') {
-      const mockEmployee: User = {
-        id: 'emp_' + Math.random().toString(36).substr(2, 9),
-        email: email,
-        name: email.split('@')[0],
-        provider: 'email',
-        role: 'employee'
-      };
-      setUser(mockEmployee);
-    } else {
-      throw new Error('Invalid employee credentials');
-    }
+    // For now use same credentials provider; role management would be server-side
+    await signIn('credentials', { email, password, callbackUrl: '/admin/portal' });
   };
 
   const loginWithGoogle = async () => {
-    // Mock Google OAuth - simulate popup and callback
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulate Google user data
-    const mockGoogleUser: User = {
-      id: 'google_' + Math.random().toString(36).substr(2, 9),
-      email: 'user@gmail.com',
-      name: 'Google User',
-      avatar: 'https://ui-avatars.com/api/?name=Google+User&background=4285f4&color=fff',
-      provider: 'google'
-    };
-    
-    setUser(mockGoogleUser);
+    await signIn('google', { callbackUrl: '/' });
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('logistix_user');
+    signOut({ callbackUrl: '/signin' });
   };
 
   return (

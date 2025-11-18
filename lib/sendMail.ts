@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 
 export type SendMailInput = {
   from?: string;
+  replyTo?: string;
   to?: string | string[];
   subject: string;
   text?: string;
@@ -12,14 +13,18 @@ export type SendMailInput = {
 const defaultTo = process.env.MAIL_TO;
 const defaultFrom = process.env.MAIL_FROM || 'no-reply@asianshippingthai.com';
 
-export async function sendMail({ from, to = defaultTo, subject, text, html }: SendMailInput) {
+export async function sendMail({ from, replyTo, to = defaultTo, subject, text, html }: SendMailInput) {
   if (!to) {
     console.log('[sendMail] No recipient configured');
     return; // no destination configured
   }
 
-  console.log('[sendMail] Attempting to send email to:', to);
+  const actualFrom = from || defaultFrom;
+  console.log('[sendMail] Attempting to send email');
+  console.log('[sendMail] From:', actualFrom);
+  console.log('[sendMail] To:', to);
   console.log('[sendMail] Subject:', subject);
+  console.log('[sendMail] Reply-To:', replyTo || 'none');
 
   // Prefer Resend if API key present
   const resendKey = process.env.RESEND_API_KEY;
@@ -27,17 +32,20 @@ export async function sendMail({ from, to = defaultTo, subject, text, html }: Se
     console.log('[sendMail] Trying Resend API...');
     const resend = new Resend(resendKey);
     try {
-      await resend.emails.send({
-        from: from || defaultFrom,
+      const result = await resend.emails.send({
+        from: actualFrom,
+        replyTo: replyTo || undefined,
         to: Array.isArray(to) ? to : [to],
         subject,
         text,
         html,
       });
       console.log('[sendMail] ✅ Email sent via Resend');
+      console.log('[sendMail] Resend response:', JSON.stringify(result));
       return;
-    } catch (err) {
+    } catch (err: any) {
       console.log('[sendMail] ❌ Resend failed:', err);
+      console.log('[sendMail] Resend error details:', JSON.stringify(err.message || err));
       // fall through to SMTP
     }
   }
@@ -65,7 +73,14 @@ export async function sendMail({ from, to = defaultTo, subject, text, html }: Se
   });
 
   try {
-    await transporter.sendMail({ from: from || defaultFrom, to, subject, text, html });
+    await transporter.sendMail({ 
+      from: actualFrom, 
+      replyTo: replyTo || actualFrom, // Default reply-to to sender
+      to, 
+      subject, 
+      text, 
+      html 
+    });
     console.log('[sendMail] ✅ Email sent via SMTP');
   } catch (err) {
     console.log('[sendMail] ❌ SMTP failed:', err);

@@ -2,49 +2,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSession } from 'next-auth/react';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { motion } from 'framer-motion';
+import QuoteRequestForm from '@/components/QuoteRequestForm';
 
 export default function PortalPage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
+  const { status } = useSession();
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [shipments, setShipments] = useState([
-    {
-      id: 'TRK-2025-001',
-      customerName: 'ABC Electronics Ltd',
-      customerEmail: 'contact@abcelectronics.com',
-      origin: 'Shanghai, China',
-      destination: 'Los Angeles, USA',
-      serviceType: 'Airfreight',
-      status: 'In Transit',
-      paymentStatus: 'Paid',
-      price: 2450.00,
-      weight: 125.5,
-      packageType: 'Cartons',
-      containerContents: 'Electronic Components',
-      bookingDate: '2025-11-01',
-      estimatedDelivery: '2025-11-15',
-      documents: ['Commercial Invoice', 'Packing List', 'Bill of Lading']
-    },
-    {
-      id: 'TRK-2025-002',
-      customerName: 'Fashion Imports Co',
-      customerEmail: 'orders@fashionimports.com',
-      origin: 'Mumbai, India',
-      destination: 'New York, USA',
-      serviceType: 'Seafreight LCL',
-      status: 'Pending Pickup',
-      paymentStatus: 'Pending',
-      price: 1850.00,
-      weight: 450.0,
-      packageType: 'Pallets',
-      containerContents: 'Textile Products',
-      bookingDate: '2025-11-08',
-      estimatedDelivery: '2025-12-10',
-      documents: ['Commercial Invoice']
-    }
-  ]);
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(true);
   const [editingShipment, setEditingShipment] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [supportForm, setSupportForm] = useState({
@@ -53,14 +22,55 @@ export default function PortalPage() {
     trackingId: '',
     message: ''
   });
+  const [callbackForm, setCallbackForm] = useState({
+    phone: '',
+    preferredTime: '',
+    reason: ''
+  });
+  const [showCallbackModal, setShowCallbackModal] = useState(false);
   const [notification, setNotification] = useState<{type: 'success'|'error', message: string} | null>(null);
   const [emailHistory, setEmailHistory] = useState<any[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState<any>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [trackingSearchId, setTrackingSearchId] = useState('');
+  const [trackingResult, setTrackingResult] = useState<any>(null);
+  const [trackingUpdates, setTrackingUpdates] = useState<any[]>([]);
   
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log('[Portal] mounted');
-    // Load email history for this customer
+    // Load shipments and email history for this customer
     if (user?.email) {
+      // Load shipments
+      setShipmentsLoading(true);
+      fetch(`/api/shipments?customerEmail=${encodeURIComponent(user.email)}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res?.ok && res.data) {
+            setShipments(res.data.map((s: any) => ({
+              id: s.code, // Display tracking code
+              dbId: s.id, // Keep database ID for tracking API
+              customerName: s.customerName,
+              customerEmail: s.customerEmail,
+              origin: s.origin,
+              destination: s.destination,
+              serviceType: s.serviceType,
+              status: s.status,
+              paymentStatus: s.paymentStatus,
+              price: s.price,
+              weight: s.weight,
+              packageType: s.packageType,
+              containerContents: s.containerContents,
+              bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+              estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+              documents: s.documents || []
+            })));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setShipmentsLoading(false));
+
+      // Load email history
       fetch(`/api/emails?limit=50`)
         .then(r => r.json())
         .then(res => {
@@ -80,16 +90,17 @@ export default function PortalPage() {
     };
   }, [user]);
 
-  // Redirect to login if not authenticated, or to employee portal if employee
+  // Redirect to sign-in if not authenticated (NextAuth session bridged via AuthContext)
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/auth/login');
-    } else if (!isLoading && user && user.role === 'employee') {
-      router.push('/admin/portal');
+    // Only redirect if BOTH loading is complete AND status shows unauthenticated
+    if (!isLoading && status === 'unauthenticated') {
+      router.push('/signin');
     }
-  }, [user, isLoading, router]);
+  }, [isLoading, status, router]);
 
-  if (isLoading) {
+  // Show loading while authentication state is being determined
+  // Wait for BOTH isLoading and status to be ready
+  if (isLoading || status === 'loading' || (status === 'authenticated' && !user)) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -100,48 +111,131 @@ export default function PortalPage() {
     );
   }
 
+  // If not authenticated, don't render anything (redirect will happen)
   if (!user) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
-  const handleAddShipment = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddShipment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newShipment = {
-      id: `TRK-2025-${String(shipments.length + 1).padStart(3, '0')}`,
-      customerName: formData.get('customerName') as string,
-      customerEmail: formData.get('customerEmail') as string,
-      origin: formData.get('origin') as string,
-      destination: formData.get('destination') as string,
-      serviceType: formData.get('serviceType') as string,
-      status: 'Pending Pickup',
-      paymentStatus: formData.get('paymentStatus') as string,
-      price: parseFloat(formData.get('price') as string),
-      weight: parseFloat(formData.get('weight') as string),
-      packageType: formData.get('packageType') as string,
-      containerContents: formData.get('containerContents') as string,
-      bookingDate: formData.get('bookingDate') as string,
-      estimatedDelivery: formData.get('estimatedDelivery') as string,
-      documents: []
-    };
-    setShipments([...shipments, newShipment]);
-    setShowAddForm(false);
-    setActiveSection('shipments');
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: formData.get('customerName'),
+          customerEmail: formData.get('customerEmail'),
+          origin: formData.get('origin'),
+          destination: formData.get('destination'),
+          serviceType: formData.get('serviceType'),
+          paymentStatus: formData.get('paymentStatus'),
+          price: formData.get('price'),
+          weight: formData.get('weight'),
+          packageType: formData.get('packageType'),
+          containerContents: formData.get('containerContents'),
+          bookingDate: formData.get('bookingDate'),
+          estimatedDelivery: formData.get('estimatedDelivery'),
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        // Reload shipments
+        if (user?.email) {
+          const reloadRes = await fetch(`/api/shipments?customerEmail=${encodeURIComponent(user.email)}`);
+          const reloadData = await reloadRes.json();
+          if (reloadData?.ok && reloadData.data) {
+            setShipments(reloadData.data.map((s: any) => ({
+              id: s.code,
+              customerName: s.customerName,
+              customerEmail: s.customerEmail,
+              origin: s.origin,
+              destination: s.destination,
+              serviceType: s.serviceType,
+              status: s.status,
+              paymentStatus: s.paymentStatus,
+              price: s.price,
+              weight: s.weight,
+              packageType: s.packageType,
+              containerContents: s.containerContents,
+              bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+              estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+              documents: s.documents || []
+            })));
+          }
+        }
+        setShowAddForm(false);
+        setActiveSection('shipments');
+        setNotification({ type: 'success', message: '✅ Shipment created successfully!' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to create shipment'}` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Connection error' });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
-  const handleUpdateShipment = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateShipment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const updatedShipments = shipments.map(s => 
-      s.id === editingShipment.id ? {
-        ...s,
-        status: formData.get('status') as string,
-        paymentStatus: formData.get('paymentStatus') as string,
-        price: parseFloat(formData.get('price') as string),
-      } : s
-    );
-    setShipments(updatedShipments);
-    setEditingShipment(null);
+    try {
+      // Find shipment in DB by code
+      const shipment = shipments.find(s => s.id === editingShipment.id);
+      if (!shipment) return;
+      
+      const dbShipment = await fetch(`/api/shipments`).then(r=>r.json()).then(d => d.data?.find((s:any)=>s.code===shipment.id));
+      if (!dbShipment) return;
+
+      const res = await fetch('/api/shipments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: dbShipment.id,
+          status: formData.get('status'),
+          paymentStatus: formData.get('paymentStatus'),
+          price: formData.get('price'),
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        // Reload
+        if (user?.email) {
+          const reloadRes = await fetch(`/api/shipments?customerEmail=${encodeURIComponent(user.email)}`);
+          const reloadData = await reloadRes.json();
+          if (reloadData?.ok && reloadData.data) {
+            setShipments(reloadData.data.map((s: any) => ({
+              id: s.code,
+              customerName: s.customerName,
+              customerEmail: s.customerEmail,
+              origin: s.origin,
+              destination: s.destination,
+              serviceType: s.serviceType,
+              status: s.status,
+              paymentStatus: s.paymentStatus,
+              price: s.price,
+              weight: s.weight,
+              packageType: s.packageType,
+              containerContents: s.containerContents,
+              bookingDate: new Date(s.bookingDate).toISOString().split('T')[0],
+              estimatedDelivery: s.estimatedDelivery ? new Date(s.estimatedDelivery).toISOString().split('T')[0] : null,
+              documents: s.documents || []
+            })));
+          }
+        }
+        setEditingShipment(null);
+        setNotification({ type: 'success', message: '✅ Shipment updated!' });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to update'}` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Connection error' });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
   const handleSendSupportMessage = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -152,7 +246,7 @@ export default function PortalPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: user.email,
+          replyTo: user.email, // Reply goes to customer
           to: 'support@asianshippingthai.com', // This will use MAIL_TO from env
           subject: `[${supportForm.priority}] ${supportForm.subject}${supportForm.trackingId ? ` - ${supportForm.trackingId}` : ''}`,
           text: `From: ${user.name} (${user.email})\nPriority: ${supportForm.priority}\n${supportForm.trackingId ? `Tracking ID: ${supportForm.trackingId}\n` : ''}\n\nMessage:\n${supportForm.message}`
@@ -183,6 +277,85 @@ export default function PortalPage() {
     } catch (error) {
       setNotification({ type: 'error', message: '❌ Connection error. Please try again later.' });
       setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  const handleRequestCallback = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          replyTo: user.email, // Reply goes to customer
+          to: 'support@asianshippingthai.com',
+          subject: `[URGENT] Callback Request from ${user.name}`,
+          text: `CALLBACK REQUEST\n\nCustomer: ${user.name}\nEmail: ${user.email}\nPhone: ${callbackForm.phone}\nPreferred Time: ${callbackForm.preferredTime}\nReason: ${callbackForm.reason}\n\nPlease call this customer as soon as possible.`
+        })
+      });
+
+      if (response.ok) {
+        setNotification({ type: 'success', message: '✅ Callback request submitted! We\'ll call you within 2 hours.' });
+        setCallbackForm({ phone: '', preferredTime: '', reason: '' });
+        setShowCallbackModal(false);
+      } else {
+        setNotification({ type: 'error', message: '❌ Failed to submit request. Please try again.' });
+      }
+      
+      setTimeout(() => setNotification(null), 5000);
+    } catch (error) {
+      setNotification({ type: 'error', message: '❌ Connection error. Please try again later.' });
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  const handleTrackShipment = async () => {
+    if (!trackingSearchId.trim()) {
+      setNotification({ type: 'error', message: '❌ Please enter a tracking ID' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    try {
+      console.log('[Tracking] Searching for:', trackingSearchId);
+      console.log('[Tracking] Available shipments:', shipments.map(s => ({ code: s.id, dbId: s.dbId })));
+      
+      // Find shipment by tracking code (case-insensitive)
+      const shipment = shipments.find(s => 
+        s.id && s.id.toLowerCase() === trackingSearchId.trim().toLowerCase()
+      );
+      
+      if (!shipment) {
+        setNotification({ type: 'error', message: `❌ Tracking ID "${trackingSearchId}" not found in your shipments` });
+        setTimeout(() => setNotification(null), 3000);
+        setTrackingResult(null);
+        setTrackingUpdates([]);
+        return;
+      }
+
+      console.log('[Tracking] Found shipment:', shipment);
+      setTrackingResult(shipment);
+
+      // Load tracking updates using the shipment's database ID
+      if (shipment.dbId) {
+        console.log('[Tracking] Loading updates for shipment dbId:', shipment.dbId);
+        const res = await fetch(`/api/tracking?shipmentId=${shipment.dbId}`);
+        const updates = await res.json();
+        console.log('[Tracking] Updates received:', updates);
+        setTrackingUpdates(updates);
+        
+        setNotification({ type: 'success', message: '✅ Shipment found!' });
+      } else {
+        console.error('[Tracking] No dbId found for shipment');
+        setNotification({ type: 'error', message: '❌ Failed to load tracking info' });
+      }
+      
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error) {
+      console.error('Error tracking shipment:', error);
+      setNotification({ type: 'error', message: '❌ Failed to load tracking info' });
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -434,31 +607,9 @@ export default function PortalPage() {
               {/* Notifications & Updates */}
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h3 className="text-xl font-bold mb-4">Recent Notifications</h3>
-                <div className="space-y-3">
-                  <div className="flex gap-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                    <div className="text-2xl">📦</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Shipment Update</p>
-                      <p className="text-sm text-gray-600">TRK-2025-001 is now in transit</p>
-                      <p className="text-xs text-gray-400 mt-1">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                    <div className="text-2xl">✅</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Payment Confirmed</p>
-                      <p className="text-sm text-gray-600">Payment received for TRK-2025-002</p>
-                      <p className="text-xs text-gray-400 mt-1">5 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                    <div className="text-2xl">⚠️</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">Action Required</p>
-                      <p className="text-sm text-gray-600">Complete customs documentation</p>
-                      <p className="text-xs text-gray-400 mt-1">1 day ago</p>
-                    </div>
-                  </div>
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No notifications at this time</p>
+                  <p className="text-xs mt-1">You'll see updates about your shipments here</p>
                 </div>
               </div>
             </div>
@@ -523,12 +674,24 @@ export default function PortalPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${shipment.price.toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => setEditingShipment(shipment)}
-                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                            onClick={async () => {
+                              setEditingShipment(shipment);
+                              // Load tracking updates
+                              if (shipment.dbId) {
+                                try {
+                                  const res = await fetch(`/api/tracking?shipmentId=${shipment.dbId}`);
+                                  const updates = await res.json();
+                                  setTrackingUpdates(updates);
+                                } catch (error) {
+                                  console.error('Failed to load tracking:', error);
+                                  setTrackingUpdates([]);
+                                }
+                              }
+                            }}
+                            className="text-indigo-600 hover:text-indigo-900"
                           >
-                            Edit
+                            View Tracking
                           </button>
-                          <button className="text-red-600 hover:text-red-900">Delete</button>
                         </td>
                       </tr>
                     ))}
@@ -537,70 +700,132 @@ export default function PortalPage() {
               </div>
             </div>
 
-            {/* Edit Modal */}
+            {/* Tracking Modal */}
             {editingShipment && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                  className="bg-white rounded-xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
                 >
-                  <h3 className="text-2xl font-bold mb-6">Edit Shipment: {editingShipment.id}</h3>
-                  <form onSubmit={handleUpdateShipment} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h3 className="text-2xl font-bold">Shipment Tracking</h3>
+                      <p className="text-gray-600 mt-1">{editingShipment.id}</p>
+                    </div>
+                    <button
+                      onClick={() => setEditingShipment(null)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Shipment Info Card */}
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select
-                          name="status"
-                          defaultValue={editingShipment.status}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                        >
-                          <option>Pending Pickup</option>
-                          <option>Picked Up</option>
-                          <option>In Transit</option>
-                          <option>Out for Delivery</option>
-                          <option>Delivered</option>
-                        </select>
+                        <p className="text-sm text-gray-600">Current Status</p>
+                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full mt-1 ${
+                          editingShipment.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                          editingShipment.status === 'In Transit' ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {editingShipment.status}
+                        </span>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
-                        <select
-                          name="paymentStatus"
-                          defaultValue={editingShipment.paymentStatus}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                        >
-                          <option>Pending</option>
-                          <option>Paid</option>
-                          <option>Refunded</option>
-                        </select>
+                        <p className="text-sm text-gray-600">Payment Status</p>
+                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full mt-1 ${
+                          editingShipment.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {editingShipment.paymentStatus}
+                        </span>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
-                        <input
-                          type="number"
-                          name="price"
-                          step="0.01"
-                          defaultValue={editingShipment.price}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                        />
+                        <p className="text-sm text-gray-600">Route</p>
+                        <p className="font-semibold">{editingShipment.origin} → {editingShipment.destination}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Service Type</p>
+                        <p className="font-semibold">{editingShipment.serviceType}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Booking Date</p>
+                        <p className="font-semibold">{editingShipment.bookingDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Price</p>
+                        <p className="font-semibold">${editingShipment.price.toFixed(2)}</p>
                       </div>
                     </div>
-                    <div className="flex gap-4 mt-6">
-                      <button
-                        type="submit"
-                        className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                      >
-                        Update Shipment
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingShipment(null)}
-                        className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
+                  </div>
+
+                  {/* Tracking Timeline */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h4 className="text-xl font-bold mb-6">📍 Tracking Timeline</h4>
+                    
+                    {trackingUpdates.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No tracking updates available yet</p>
+                        <p className="text-sm text-gray-400 mt-2">Your shipment tracking will appear here once it's been processed</p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        {/* Vertical timeline line */}
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                        
+                        {trackingUpdates.map((update, index) => (
+                          <div key={update.id} className="relative pl-12 pb-8 last:pb-0">
+                            {/* Timeline dot */}
+                            <div className={`absolute left-2 top-0 w-4 h-4 rounded-full border-2 ${
+                              update.isActive 
+                                ? 'bg-green-500 border-green-600 animate-pulse' 
+                                : 'bg-red-500 border-red-600'
+                            }`}></div>
+                            
+                            {/* Update content */}
+                            <div className={`bg-white border-2 rounded-lg p-4 shadow-sm ${
+                              update.isActive 
+                                ? 'border-green-500 shadow-green-100' 
+                                : 'border-gray-200'
+                            }`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h6 className="font-bold text-lg text-gray-900">{update.status}</h6>
+                                    {update.isActive && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                                        CURRENT
+                                      </span>
+                                    )}
+                                  </div>
+                                  {update.location && (
+                                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                                      <span>📍</span> {update.location}
+                                    </p>
+                                  )}
+                                  {update.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{update.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    {new Date(update.createdAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setEditingShipment(null)}
+                    className="mt-6 w-full bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+                  >
+                    Close
+                  </button>
                 </motion.div>
               </div>
             )}
@@ -784,72 +1009,113 @@ export default function PortalPage() {
                 <div className="flex gap-4">
                   <input
                     type="text"
+                    value={trackingSearchId}
+                    onChange={(e) => setTrackingSearchId(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleTrackShipment()}
                     className="flex-1 border border-gray-300 rounded-lg px-4 py-3"
                     placeholder="TRK-2025-XXX"
                   />
-                  <button className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition">
+                  <button 
+                    onClick={handleTrackShipment}
+                    className="bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+                  >
                     Search
                   </button>
                 </div>
               </div>
 
-              {/* Sample Tracking Result */}
-              <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-bold mb-4">Shipment Details: TRK-2025-001</h3>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm text-gray-500">Customer</p>
-                    <p className="font-semibold">ABC Electronics Ltd</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <p className="font-semibold text-orange-600">In Transit</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Origin</p>
-                    <p className="font-semibold">Shanghai, China</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Destination</p>
-                    <p className="font-semibold">Los Angeles, USA</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Weight</p>
-                    <p className="font-semibold">125.5 kg</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Estimated Delivery</p>
-                    <p className="font-semibold">Nov 15, 2025</p>
-                  </div>
+              {/* Tracking Results */}
+              {!trackingResult ? (
+                <div className="mt-8 p-6 bg-gray-50 rounded-lg text-center">
+                  <p className="text-gray-500">Enter a tracking ID to see shipment details</p>
                 </div>
+              ) : (
+                <div className="mt-8">
+                  {/* Shipment Info Card */}
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Tracking ID</p>
+                        <p className="text-xl font-bold text-gray-900">{trackingResult.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Current Status</p>
+                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                          trackingResult.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                          trackingResult.status === 'In Transit' ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {trackingResult.status}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Route</p>
+                        <p className="font-semibold">{trackingResult.origin} → {trackingResult.destination}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Service Type</p>
+                        <p className="font-semibold">{trackingResult.serviceType}</p>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="border-t pt-6">
-                  <h4 className="font-semibold mb-4">Tracking History</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">Package Picked Up</p>
-                        <p className="text-sm text-gray-500">Nov 1, 2025 - Shanghai</p>
+                  {/* Tracking Timeline */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h3 className="text-xl font-bold mb-6">📍 Tracking Timeline</h3>
+                    
+                    {trackingUpdates.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No tracking updates available yet</p>
+                    ) : (
+                      <div className="relative">
+                        {/* Vertical timeline line */}
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                        
+                        {trackingUpdates.map((update, index) => (
+                          <div key={update.id} className="relative pl-12 pb-8 last:pb-0">
+                            {/* Timeline dot */}
+                            <div className={`absolute left-2 top-0 w-4 h-4 rounded-full border-2 ${
+                              update.isActive 
+                                ? 'bg-green-500 border-green-600 animate-pulse' 
+                                : 'bg-red-500 border-red-600'
+                            }`}></div>
+                            
+                            {/* Update content */}
+                            <div className={`bg-white border-2 rounded-lg p-4 shadow-sm ${
+                              update.isActive 
+                                ? 'border-green-500 shadow-green-100' 
+                                : 'border-gray-200'
+                            }`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h6 className="font-bold text-lg text-gray-900">{update.status}</h6>
+                                    {update.isActive && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                                        CURRENT
+                                      </span>
+                                    )}
+                                  </div>
+                                  {update.location && (
+                                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                                      <span>📍</span> {update.location}
+                                    </p>
+                                  )}
+                                  {update.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{update.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    {new Date(update.createdAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">In Transit to Port</p>
-                        <p className="text-sm text-gray-500">Nov 3, 2025 - Shanghai Port</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 bg-orange-500 rounded-full mt-1"></div>
-                      <div>
-                        <p className="font-semibold">In Transit (Sea)</p>
-                        <p className="text-sm text-gray-500">Nov 5, 2025 - Pacific Ocean</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -888,40 +1154,10 @@ export default function PortalPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4">Commercial_Invoice_001.pdf</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Invoice</span>
-                    </td>
-                    <td className="px-6 py-4">Nov 1, 2025</td>
-                    <td className="px-6 py-4">245 KB</td>
-                    <td className="px-6 py-4 text-center">
-                      <button className="text-blue-600 hover:text-blue-800 mr-3">View</button>
-                      <button className="text-red-600 hover:text-red-800">Delete</button>
-                    </td>
-                  </tr>
-                  <tr className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4">Packing_List.pdf</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Packing</span>
-                    </td>
-                    <td className="px-6 py-4">Nov 1, 2025</td>
-                    <td className="px-6 py-4">180 KB</td>
-                    <td className="px-6 py-4 text-center">
-                      <button className="text-blue-600 hover:text-blue-800 mr-3">View</button>
-                      <button className="text-red-600 hover:text-red-800">Delete</button>
-                    </td>
-                  </tr>
-                  <tr className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4">Bill_of_Lading.pdf</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">BOL</span>
-                    </td>
-                    <td className="px-6 py-4">Nov 3, 2025</td>
-                    <td className="px-6 py-4">320 KB</td>
-                    <td className="px-6 py-4 text-center">
-                      <button className="text-blue-600 hover:text-blue-800 mr-3">View</button>
-                      <button className="text-red-600 hover:text-red-800">Delete</button>
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <p>No documents uploaded yet</p>
+                      <p className="text-xs mt-1">Upload your shipping documents above</p>
                     </td>
                   </tr>
                 </tbody>
@@ -936,65 +1172,10 @@ export default function PortalPage() {
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Request a Quote</h2>
             <div className="bg-white rounded-xl shadow-lg p-8">
               <p className="text-gray-600 mb-6">Fill out the form below to request a shipping quote. Our team will respond within 24 hours.</p>
-              <form className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Service Type *</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-500">
-                      <option>Select Service</option>
-                      <option>Airfreight</option>
-                      <option>Seafreight FCL</option>
-                      <option>Seafreight LCL</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Cargo Type *</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-500">
-                      <option>Select Type</option>
-                      <option>General Cargo</option>
-                      <option>Refrigerated</option>
-                      <option>Hazardous</option>
-                      <option>Oversized</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Origin Port/Airport *</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="e.g., Shanghai, China" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Destination Port/Airport *</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="e.g., Los Angeles, USA" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg) *</label>
-                    <input type="number" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Dimensions (L x W x H cm)</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="e.g., 100 x 80 x 60" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Cargo Description *</label>
-                    <textarea rows={4} className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="Describe your cargo..."></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Shipping Date</label>
-                    <input type="date" className="w-full border border-gray-300 rounded-lg px-4 py-3" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
-                    <input type="tel" className="w-full border border-gray-300 rounded-lg px-4 py-3" placeholder="+1 234 567 8900" />
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <button type="submit" className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition">
-                    Submit Quote Request
-                  </button>
-                  <button type="reset" className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                    Clear Form
-                  </button>
-                </div>
-              </form>
+              <QuoteRequestForm 
+                user={user}
+                onSuccess={() => setActiveSection('dashboard')}
+              />
             </div>
           </motion.div>
         )}
@@ -1005,28 +1186,106 @@ export default function PortalPage() {
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Customer Support</h2>
             
             {/* Quick Contact Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 shadow-lg">
                 <div className="text-4xl mb-3">📞</div>
-                <h3 className="text-xl font-bold mb-2">Call Us</h3>
-                <p className="text-blue-100 mb-3">24/7 Support Hotline</p>
-                <a href="tel:+12345678900" className="text-lg font-semibold">+1 234 567 8900</a>
+                <h3 className="text-xl font-bold mb-2">Request Callback</h3>
+                <p className="text-blue-100 mb-3">We'll call you back within 2 hours</p>
+                <button 
+                  onClick={() => setShowCallbackModal(true)}
+                  className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition"
+                >
+                  Request Call
+                </button>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 shadow-lg">
                 <div className="text-4xl mb-3">📧</div>
                 <h3 className="text-xl font-bold mb-2">Email Us</h3>
                 <p className="text-green-100 mb-3">Response within 2 hours</p>
-                <a href="mailto:support@asianlogistics.com" className="text-lg font-semibold">support@asianlogistics.com</a>
-              </div>
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 shadow-lg">
-                <div className="text-4xl mb-3">💬</div>
-                <h3 className="text-xl font-bold mb-2">Live Chat</h3>
-                <p className="text-purple-100 mb-3">Instant assistance</p>
-                <button className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-purple-50 transition">
-                  Start Chat
-                </button>
+                <a href="mailto:support@asianshippingthai.com" className="text-lg font-semibold">support@asianshippingthai.com</a>
               </div>
             </div>
+
+            {/* Callback Request Modal */}
+            {showCallbackModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                   onClick={() => setShowCallbackModal(false)}>
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Request a Callback</h2>
+                    <button
+                      onClick={() => setShowCallbackModal(false)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleRequestCallback} className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Your Phone Number *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={callbackForm.phone}
+                        onChange={(e) => setCallbackForm({...callbackForm, phone: e.target.value})}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                        placeholder="+66 2 249 3889"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Time *</label>
+                      <select
+                        required
+                        value={callbackForm.preferredTime}
+                        onChange={(e) => setCallbackForm({...callbackForm, preferredTime: e.target.value})}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                      >
+                        <option value="">Select time</option>
+                        <option>ASAP</option>
+                        <option>Morning (9AM - 12PM)</option>
+                        <option>Afternoon (12PM - 5PM)</option>
+                        <option>Evening (5PM - 8PM)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Call *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={callbackForm.reason}
+                        onChange={(e) => setCallbackForm({...callbackForm, reason: e.target.value})}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                        placeholder="Brief description of what you need help with..."
+                      ></textarea>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                      >
+                        Request Callback
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCallbackModal(false)}
+                        className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
 
             {/* Contact Form */}
             <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
@@ -1097,7 +1356,14 @@ export default function PortalPage() {
               ) : (
                 <div className="space-y-3">
                   {emailHistory.map((email, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                    <div 
+                      key={index} 
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedEmail(email);
+                        setShowEmailModal(true);
+                      }}
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-semibold">{email.subject}</p>
@@ -1116,6 +1382,7 @@ export default function PortalPage() {
                       <p className="text-sm text-gray-500">
                         {new Date(email.createdAt).toLocaleString()}
                       </p>
+                      <p className="text-xs text-blue-600 mt-2">Click to view full email</p>
                     </div>
                   ))}
                 </div>
@@ -1186,7 +1453,7 @@ export default function PortalPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                        <input type="tel" placeholder="+1 234 567 8900" className="w-full border border-gray-300 rounded-lg px-4 py-3" />
+                        <input type="tel" placeholder="+66 2 249 3889" className="w-full border border-gray-300 rounded-lg px-4 py-3" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
@@ -1261,7 +1528,7 @@ export default function PortalPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                       <input
                         type="email"
-                        defaultValue="employee@asianlogistics.com"
+                        defaultValue="employee@asianshippingthai.com"
                         className="w-full border border-gray-300 rounded-lg px-4 py-2"
                       />
                     </div>
@@ -1317,6 +1584,80 @@ export default function PortalPage() {
           </motion.div>
         )}
       </main>
+
+      {/* Email Detail Modal */}
+      {showEmailModal && selectedEmail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowEmailModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-start">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedEmail.subject}</h2>
+                <div className="flex gap-4 text-sm text-gray-600">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    selectedEmail.status === 'sent' ? 'bg-green-100 text-green-700' :
+                    selectedEmail.status === 'failed' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {selectedEmail.status}
+                  </span>
+                  <span>{selectedEmail.direction === 'outgoing' ? '📤 Outgoing' : '📥 Incoming'}</span>
+                  <span>{new Date(selectedEmail.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="text-gray-400 hover:text-gray-600 ml-4"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="grid grid-cols-4 gap-2">
+                  <span className="font-semibold text-gray-700">From:</span>
+                  <span className="col-span-3 text-gray-900">{selectedEmail.from}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <span className="font-semibold text-gray-700">To:</span>
+                  <span className="col-span-3 text-gray-900">{selectedEmail.to}</span>
+                </div>
+                {selectedEmail.sentAt && (
+                  <div className="grid grid-cols-4 gap-2">
+                    <span className="font-semibold text-gray-700">Sent:</span>
+                    <span className="col-span-3 text-gray-900">{new Date(selectedEmail.sentAt).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-700 mb-3">Message:</h3>
+                {selectedEmail.html ? (
+                  <div 
+                    className="prose max-w-none bg-white p-4 rounded-lg border"
+                    dangerouslySetInnerHTML={{ __html: selectedEmail.html }}
+                  />
+                ) : (
+                  <div className="bg-white p-4 rounded-lg border whitespace-pre-wrap">
+                    {selectedEmail.text || 'No message content'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t p-4 flex justify-end">
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </ErrorBoundary>
   );

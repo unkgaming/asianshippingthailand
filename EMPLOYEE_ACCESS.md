@@ -23,7 +23,7 @@
 
 ## 🔑 Demo Login Credentials:
 
-**Email:** `employee@asianlogistics.com`  
+**Email:** `employee@asianshippingthai.com`  
 **Password:** `employee123`
 
 **OR** use any email containing:

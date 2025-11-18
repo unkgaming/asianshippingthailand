@@ -7,7 +7,7 @@
 The employee portal is now completely separate with proper authentication:
 
 ### Employee Login
-- **Email:** employee@asianlogistics.com  
+- **Email:** employee@asianshippingthai.com  
 - **Password:** employee123
 
 Or use any email containing "admin" or "employee" with the password "employee123"

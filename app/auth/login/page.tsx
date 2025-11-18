@@ -258,7 +258,7 @@ export default function LoginPage() {
                   </label>
                   <button 
                     type="button"
-                    onClick={() => alert('Password reset feature coming soon! Please contact support@asianlogistics.com for assistance.')}
+                    onClick={() => alert('Password reset feature coming soon! Please contact info@asianshippingthai.com for assistance.')}
                     className="text-red-600 hover:text-red-700 font-semibold"
                   >
                     Forgot password?
@@ -290,12 +290,12 @@ export default function LoginPage() {
               <div className="mt-8 text-center">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
-                  <button
-                    onClick={() => alert('Sign up feature coming soon! Please contact sales@asianlogistics.com to create an account.')}
+                  <Link
+                    href="/signup"
                     className="text-red-600 hover:text-red-700 font-bold"
                   >
                     Sign up now
-                  </button>
+                  </Link>
                 </p>
               </div>
 

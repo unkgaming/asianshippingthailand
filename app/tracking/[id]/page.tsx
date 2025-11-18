@@ -32,60 +32,63 @@ export default function TrackingDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call to fetch tracking data
     const fetchTracking = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        // Fetch shipment by tracking code
+        const shipmentRes = await fetch(`/api/shipments`);
+        const shipmentData = await shipmentRes.json();
+        
+        if (!shipmentData?.ok || !shipmentData.data) {
+          setShipment(null);
+          setLoading(false);
+          return;
+        }
 
-      // Mock data - in production, fetch from API
-      const mockData: ShipmentData = {
-        id: trackingId,
-        origin: 'Bangkok, Thailand',
-        destination: 'Los Angeles, USA',
-        estimatedDelivery: '2025-11-18',
-        currentStatus: 'In Transit',
-        service: 'Airfreight Express',
-        weight: '125 kg',
-        events: [
-          {
-            date: '2025-11-12',
-            time: '14:30',
-            location: 'Hong Kong Hub',
-            status: 'In Transit',
-            description: 'Package departed from Hong Kong international hub'
-          },
-          {
-            date: '2025-11-12',
-            time: '08:15',
-            location: 'Hong Kong Hub',
-            status: 'Arrived',
-            description: 'Package arrived at Hong Kong sorting facility'
-          },
-          {
-            date: '2025-11-11',
-            time: '22:45',
-            location: 'Bangkok, Thailand',
-            status: 'Departed',
-            description: 'Package departed from origin facility'
-          },
-          {
-            date: '2025-11-11',
-            time: '16:20',
-            location: 'Bangkok, Thailand',
-            status: 'Picked Up',
-            description: 'Package picked up from sender'
-          },
-          {
-            date: '2025-11-11',
-            time: '10:00',
-            location: 'Bangkok, Thailand',
-            status: 'Order Received',
-            description: 'Shipment order received and processed'
-          }
-        ]
-      };
+        // Find shipment with matching tracking code
+        const foundShipment = shipmentData.data.find((s: any) => s.code === trackingId);
+        
+        if (!foundShipment) {
+          setShipment(null);
+          setLoading(false);
+          return;
+        }
 
-      setShipment(mockData);
-      setLoading(false);
+        // Fetch tracking updates
+        const trackingRes = await fetch(`/api/tracking?shipmentId=${foundShipment.id}`);
+        const trackingUpdates = await trackingRes.json();
+
+        // Convert to expected format
+        const events: TrackingEvent[] = trackingUpdates.map((update: any) => {
+          const date = new Date(update.createdAt);
+          return {
+            date: date.toISOString().split('T')[0],
+            time: date.toTimeString().split(' ')[0].substring(0, 5),
+            location: update.location || 'Unknown',
+            status: update.status,
+            description: update.description || update.status
+          };
+        }).reverse(); // Reverse to show oldest first
+
+        const shipmentInfo: ShipmentData = {
+          id: foundShipment.code,
+          origin: foundShipment.origin,
+          destination: foundShipment.destination,
+          estimatedDelivery: foundShipment.estimatedDelivery 
+            ? new Date(foundShipment.estimatedDelivery).toISOString().split('T')[0]
+            : 'TBD',
+          currentStatus: foundShipment.status,
+          service: foundShipment.serviceType,
+          weight: `${foundShipment.weight} kg`,
+          events: events
+        };
+
+        setShipment(shipmentInfo);
+      } catch (error) {
+        console.error('Error fetching tracking data:', error);
+        setShipment(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchTracking();

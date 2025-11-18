@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendMail } from '@/lib/sendMail';
+import { rateLimitMiddleware } from '@/lib/ratelimit';
+import { cacheService } from '@/lib/cache';
 
 export async function POST(req: Request) {
   try {
+    // Rate limiting: 5 submissions per minute per IP
+    const rateLimit = await rateLimitMiddleware(req as any, 'contact');
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { ok: false, error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: rateLimit.headers }
+      );
+    }
+
     const data = await req.json();
+    console.log('[Contact API] Received submission:', { name: data.name, email: data.email, service: data.service });
+    
     // Basic shape validation
     const {
       name,
@@ -20,6 +33,7 @@ export async function POST(req: Request) {
     } = data || {};
 
     if (!name || !email || !service || !message) {
+      console.error('[Contact API] Missing required fields');
       return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -45,16 +59,18 @@ export async function POST(req: Request) {
         message,
       },
     });
+    console.log('[Contact API] Inquiry created:', created.id);
+
+    // Invalidate inquiry cache so staff see new inquiry immediately
+    cacheService.invalidateInquiries();
 
     // Try to notify via email (best-effort, non-blocking)
     // Use sendTo if provided, otherwise fall back to MAIL_TO env var
     const recipient = sendTo || process.env.MAIL_TO;
     
-    void sendMail({
-      to: recipient,
-      subject: `New inquiry from ${name} (${service || 'General'})`,
-      text: `New inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`,
-      html: `<p><strong>New inquiry received</strong></p>
+    const subject = `New inquiry from ${name} (${service || 'General'})`;
+    const text = `New inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`;
+    const html = `<p><strong>New inquiry received</strong></p>
              <ul>
                <li><b>Name:</b> ${name}</li>
                <li><b>Email:</b> ${email}</li>
@@ -66,11 +82,41 @@ export async function POST(req: Request) {
              </ul>
              <p><b>Message:</b></p>
              <pre style="white-space:pre-wrap">${message}</pre>
-             <p>Submitted at: ${new Date().toISOString()}</p>`,
+             <p>Submitted at: ${new Date().toISOString()}</p>`;
+
+    // Send notification email with customer as reply-to
+    void sendMail({
+      replyTo: email, // Reply goes to customer
+      to: recipient,
+      subject,
+      text,
+      html,
     }).catch(() => {});
 
+    // Log as an incoming email for staff visibility in Admin -> Recent Emails
+    try {
+      const emailRecord = await prisma.emailMessage.create({
+        data: {
+          direction: 'incoming',
+          from: email,
+          to: recipient || 'support@asianshippingthai.com',
+          subject,
+          text,
+          html,
+          status: 'received',
+          sentAt: new Date(),
+        },
+      });
+      console.log('[Contact API] Email message logged:', emailRecord.id);
+    } catch (e: any) {
+      console.error('[Contact API] Failed to log email message:', e.message);
+      // Non-fatal if logging fails
+    }
+
+    console.log('[Contact API] Success! Inquiry and email logged.');
     return NextResponse.json({ ok: true, id: created.id });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: 'Invalid request' }, { status: 400 });
+  } catch (e: any) {
+    console.error('[Contact API Error]', e);
+    return NextResponse.json({ ok: false, error: e?.message || 'Invalid request' }, { status: 400 });
   }
 }

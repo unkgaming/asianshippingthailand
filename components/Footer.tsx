@@ -26,8 +26,11 @@ export default function Footer() {
 
         <div>
           <h4 className="font-semibold mb-3">Contact</h4>
-          <p className="text-sm text-gray-300">Hotline: +66 2 123 4567</p>
-          <p className="text-sm text-gray-300">Email: info@logistix.co.th</p>
+          <p className="text-sm text-gray-300">TEL : +6622493889 (auto)</p>
+          <p className="text-sm text-gray-300">FAX : +6622493778</p>
+          <p className="text-sm text-gray-300">CELL PHONE NO. : +66832947428</p>
+          <p className="text-sm text-gray-300">E-MAIL : asian@asianshippingthai.com (main)</p>
+          <p className="text-sm text-gray-300">Overall info: info@asianshippingthai.com</p>
         </div>
       </div>
 

@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                placeholder="employee@asianlogistics.com"
+                placeholder="employee@asianshippingthai.com"
               />
             </div>
 
@@ -137,7 +137,7 @@ export default function AdminLoginPage() {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <p className="text-xs text-gray-600 font-semibold mb-2">Demo Credentials:</p>
-            <p className="text-xs text-gray-500">Email: employee@asianlogistics.com</p>
+            <p className="text-xs text-gray-500">Email: employee@asianshippingthai.com</p>
             <p className="text-xs text-gray-500">Password: employee123</p>
           </div>
 

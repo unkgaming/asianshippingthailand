@@ -1,0 +1,11 @@
+{
+  "name": "Test Customer",
+  "email": "testcustomer@example.com",
+  "phone": "555-1234",
+  "company": "Test Company",
+  "service": "airfreight",
+  "productType": "Electronics",
+  "weight": 50,
+  "weightUnit": "kg",
+  "message": "This is a test inquiry to verify the contact form works properly."
+}

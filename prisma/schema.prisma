@@ -17,7 +17,15 @@ model User {
   name      String?
   role      String?
   provider  String?
+  image     String?
+  emailVerified DateTime?
+  password  String?
   createdAt DateTime @default(now())
+
+  // Relations
+  accounts  Account[]
+  sessions  Session[]
+  config    UserConfig?
 }
 
 model Shipment {
@@ -37,8 +45,13 @@ model Shipment {
   bookingDate       DateTime
   estimatedDelivery DateTime?
   documents         ShipmentDocument[]
+  version           Int                @default(0)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+
+  @@index([customerEmail])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model ShipmentDocument {
@@ -48,6 +61,20 @@ model ShipmentDocument {
   name       String
   url        String?
   createdAt  DateTime @default(now())
+}
+
+model TrackingUpdate {
+  id          String   @id @default(cuid())
+  shipmentId  String
+  status      String   // e.g., "Package Picked Up", "In Transit to Port", "Customs Clearance", etc.
+  location    String?
+  description String?
+  isActive    Boolean  @default(true) // true = green/current, false = red/completed
+  createdAt   DateTime @default(now())
+  createdBy   String?  // Staff email who created the update
+
+  @@index([shipmentId])
+  @@index([createdAt])
 }
 
 model Inquiry {
@@ -62,7 +89,15 @@ model Inquiry {
   weightUnit String?
   message    String
   status     String   @default("new")
+  hidden     Boolean  @default(false)
+  version    Int      @default(0)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([hidden])
 }
 
 model EmailMessage {
@@ -75,6 +110,94 @@ model EmailMessage {
   html       String?
   status     String   @default("queued") // queued | sent | failed
   error      String?
+  hidden     Boolean  @default(false)
   createdAt  DateTime @default(now())
   sentAt     DateTime?
+
+  @@index([to])
+  @@index([status])
+  @@index([createdAt])
+  @@index([hidden])
+}
+
+// NextAuth.js (Auth.js) models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Application-specific user configuration
+model UserConfig {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone     String?
+  company   String?
+  preferences Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Audit trail for all important actions
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  userEmail   String?
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, PAYMENT, etc.
+  entityType  String   // Shipment, Inquiry, User, etc.
+  entityId    String?
+  details     Json?    // Stores changes, metadata
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+// Notification preferences and history
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // shipment_update, payment_received, quote_response
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  data      Json?    // Additional data like shipmentId, etc.
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
 }

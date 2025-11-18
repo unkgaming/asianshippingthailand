@@ -14,25 +14,61 @@ export async function GET(req: Request) {
   }
   const limit = Number(searchParams.get('limit') || '50');
   const items = await prisma.emailMessage.findMany({
+    where: { hidden: false },
     orderBy: { createdAt: 'desc' },
     take: Math.min(Math.max(limit, 1), 200),
   });
   return NextResponse.json({ ok: true, data: items });
 }
 
+export async function PATCH(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const action = searchParams.get('action');
+
+    if (!id) {
+      return NextResponse.json(
+        { ok: false, error: 'Email ID is required' },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'hide') {
+      await prisma.emailMessage.update({
+        where: { id },
+        data: { hidden: true },
+      });
+      return NextResponse.json({ ok: true, message: 'Email hidden successfully' });
+    }
+
+    return NextResponse.json(
+      { ok: false, error: 'Invalid action' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error updating email:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Failed to update email' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const { to, subject, text, html, from } = await req.json();
+    const { to, subject, text, html, from, replyTo, inquiryId } = await req.json();
     if (!to || !subject) {
       return NextResponse.json({ ok: false, error: 'to and subject are required' }, { status: 400 });
     }
-    const allowed = fromOptions();
-    const chosenFrom = from && allowed.includes(from) ? from : allowed[0];
+    
+    // If custom from is provided, use it; otherwise use system default
+    const actualFrom = from || fromOptions()[0];
 
     const record = await prisma.emailMessage.create({
       data: {
         direction: 'outgoing',
-        from: chosenFrom,
+        from: actualFrom, // Store the actual sender email
         to: Array.isArray(to) ? to.join(',') : String(to),
         subject,
         text: text || undefined,
@@ -42,8 +78,27 @@ export async function POST(req: Request) {
     });
 
     try {
-      await sendMail({ from: chosenFrom, to, subject, text, html });
+      // Send email from the specified address (customer's email)
+      await sendMail({ 
+        from: actualFrom,  // Customer's email or system email
+        replyTo: replyTo,  // Optional reply-to override
+        to, 
+        subject, 
+        text, 
+        html 
+      });
       await prisma.emailMessage.update({ where: { id: record.id }, data: { status: 'sent', sentAt: new Date() } });
+      
+      // If inquiryId is provided, mark that specific inquiry as replied
+      if (inquiryId) {
+        await prisma.inquiry.update({
+          where: { id: inquiryId },
+          data: { status: 'replied' }
+        }).catch(() => {
+          // Inquiry might not exist, that's okay
+        });
+      }
+      
       return NextResponse.json({ ok: true, id: record.id });
     } catch (e: any) {
       await prisma.emailMessage.update({ where: { id: record.id }, data: { status: 'failed', error: String(e?.message || e) } });

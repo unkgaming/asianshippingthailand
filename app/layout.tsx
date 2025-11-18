@@ -16,13 +16,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <GlobalErrorHandler />
-        <AuthProvider>
-          <Providers>
+        <Providers>
+          <AuthProvider>
             <ClientNavbar />
             <main className="min-h-[calc(100vh-120px)]">{children}</main>
             <Footer />
-          </Providers>
-        </AuthProvider>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );
