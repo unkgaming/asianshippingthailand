@@ -70,6 +70,23 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true, message: 'Inquiry hidden successfully' });
     }
 
+    if (action === 'status') {
+      const body = await req.json().catch(() => null) as any;
+      const nextStatus = body?.status as string | undefined;
+      if (!nextStatus || !['new','pending','responded'].includes(nextStatus)) {
+        return NextResponse.json(
+          { ok: false, error: 'Invalid or missing status' },
+          { status: 400 }
+        );
+      }
+      await prisma.inquiry.update({
+        where: { id },
+        data: { status: nextStatus },
+      });
+      cacheService.clear();
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json(
       { ok: false, error: 'Invalid action' },
       { status: 400 }

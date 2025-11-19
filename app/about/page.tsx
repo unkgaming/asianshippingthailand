@@ -5,10 +5,10 @@ import Link from 'next/link';
 
 export default function AboutPage() {
   const stats = [
-    { number: '25+', label: 'Years Experience' },
-    { number: '150+', label: 'Countries Served' },
-    { number: '50K+', label: 'Shipments/Year' },
-    { number: '99.8%', label: 'On-Time Delivery' },
+    { number: '23+', label: 'Years Experience' },
+    { number: '50+', label: 'Countries Served' },
+    { number: '10K+', label: 'Shipments/Year' },
+    { number: '99.5%', label: 'On-Time Delivery' },
   ];
 
   const values = [
@@ -34,12 +34,7 @@ export default function AboutPage() {
     },
   ];
 
-  const team = [
-    { name: 'John Anderson', role: 'CEO & Founder', image: 'https://ui-avatars.com/api/?name=John+Anderson&size=200&background=dc2626&color=fff' },
-    { name: 'Sarah Chen', role: 'Operations Director', image: 'https://ui-avatars.com/api/?name=Sarah+Chen&size=200&background=dc2626&color=fff' },
-    { name: 'Michael Rodriguez', role: 'Head of Logistics', image: 'https://ui-avatars.com/api/?name=Michael+Rodriguez&size=200&background=dc2626&color=fff' },
-    { name: 'Emma Thompson', role: 'Customer Relations', image: 'https://ui-avatars.com/api/?name=Emma+Thompson&size=200&background=dc2626&color=fff' },
-  ];
+  // Team section removed - to be added with actual team members
 
   return (
     <div className="min-h-screen bg-white">
@@ -55,7 +50,7 @@ export default function AboutPage() {
               About asianshippingthai
             </h1>
             <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
-              Connecting the world through reliable, efficient logistics solutions for over 25 years.
+              Connecting the world through reliable, efficient logistics solutions since 2002.
             </p>
           </motion.div>
         </div>
@@ -280,50 +275,6 @@ export default function AboutPage() {
                 </h3>
                 <p className="text-gray-600">
                   {value.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              Leadership Team
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Meet the experts driving our success
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
-              <motion.div
-                key={index}
-                className="text-center group"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                <div className="relative mb-4 overflow-hidden rounded-2xl">
-                  <img
-                    src={member.image}
-                    alt={member.name}
-                    className="w-full aspect-square object-cover group-hover:scale-110 transition duration-300"
-                  />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-1">
-                  {member.name}
-                </h3>
-                <p className="text-red-600 font-medium">
-                  {member.role}
                 </p>
               </motion.div>
             ))}

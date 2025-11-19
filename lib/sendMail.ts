@@ -12,6 +12,12 @@ export type SendMailInput = {
 
 const defaultTo = process.env.MAIL_TO;
 const defaultFrom = process.env.MAIL_FROM || 'no-reply@asianshippingthai.com';
+const safeFrom = process.env.MAIL_FROM_SAFE || 'asian@asianshippingthai.com';
+const companyDomain = process.env.COMPANY_EMAIL_DOMAIN || 'asianshippingthai.com';
+const allowedFromDomains = (process.env.MAIL_FROM_ALLOWED || '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
 export async function sendMail({ from, replyTo, to = defaultTo, subject, text, html }: SendMailInput) {
   if (!to) {
@@ -19,12 +25,45 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     return; // no destination configured
   }
 
-  const actualFrom = from || defaultFrom;
+  const requestedFrom = (from || defaultFrom).trim();
+
+  // Decide safe "From" header vs Reply-To to handle providers (e.g., Gmail) that refuse arbitrary From
+  let headerFrom = requestedFrom;
+  let replyToHeader = replyTo || undefined;
+
+  // Determine if requestedFrom domain is allowed and compatible with the transport
+  const smtpUser = process.env.SMTP_USER;
+  const smtpDomain = smtpUser?.includes('@') ? smtpUser.split('@')[1].toLowerCase() : undefined;
+  const reqDomain = requestedFrom.includes('@') ? requestedFrom.split('@')[1].toLowerCase() : undefined;
+  const safeDomain = safeFrom.includes('@') ? safeFrom.split('@')[1].toLowerCase() : undefined;
+
+  const domainAllowedByPolicy = !!reqDomain && (
+    reqDomain === companyDomain ||
+    (allowedFromDomains.length > 0 && allowedFromDomains.includes(reqDomain))
+  );
+
+  const canUseRequestedFromOnSMTP = !!smtpDomain && !!reqDomain && smtpDomain === reqDomain;
+  const canUseSafeFromOnSMTP = !!smtpDomain && !!safeDomain && smtpDomain === safeDomain;
+
+  if (requestedFrom) {
+    if (domainAllowedByPolicy && canUseRequestedFromOnSMTP) {
+      // ok to use as-is
+    } else if (canUseSafeFromOnSMTP) {
+      // Use a safe sender on the SMTP domain and keep requested as reply-to
+      replyToHeader = replyToHeader || requestedFrom;
+      headerFrom = safeFrom;
+    } else if (smtpUser) {
+      // Fall back to the actual SMTP user to avoid provider overrides
+      replyToHeader = replyToHeader || requestedFrom;
+      headerFrom = smtpUser;
+    }
+  }
+
   console.log('[sendMail] Attempting to send email');
-  console.log('[sendMail] From:', actualFrom);
+  console.log('[sendMail] From:', headerFrom, `(requested: ${requestedFrom})`);
   console.log('[sendMail] To:', to);
   console.log('[sendMail] Subject:', subject);
-  console.log('[sendMail] Reply-To:', replyTo || 'none');
+  console.log('[sendMail] Reply-To:', replyToHeader || 'none');
 
   // Prefer Resend if API key present
   const resendKey = process.env.RESEND_API_KEY;
@@ -33,19 +72,27 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     const resend = new Resend(resendKey);
     try {
       const result = await resend.emails.send({
-        from: actualFrom,
-        replyTo: replyTo || undefined,
+        from: headerFrom,
+        replyTo: replyToHeader || undefined,
         to: Array.isArray(to) ? to : [to],
         subject,
         text,
         html,
       });
-      console.log('[sendMail] ✅ Email sent via Resend');
-      console.log('[sendMail] Resend response:', JSON.stringify(result));
-      return;
+      
+      // Check if Resend returned an error in the response
+      if (result.error) {
+        console.log('[sendMail] ❌ Resend returned error:', JSON.stringify(result.error));
+        console.log('[sendMail] Falling back to SMTP...');
+        // Don't return, fall through to SMTP
+      } else {
+        console.log('[sendMail] ✅ Email sent via Resend');
+        console.log('[sendMail] Resend response:', JSON.stringify(result));
+        return;
+      }
     } catch (err: any) {
-      console.log('[sendMail] ❌ Resend failed:', err);
-      console.log('[sendMail] Resend error details:', JSON.stringify(err.message || err));
+      console.log('[sendMail] ❌ Resend failed with exception:', err);
+      console.log('[sendMail] Falling back to SMTP...');
       // fall through to SMTP
     }
   }
@@ -74,8 +121,8 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
 
   try {
     await transporter.sendMail({ 
-      from: actualFrom, 
-      replyTo: replyTo || actualFrom, // Default reply-to to sender
+      from: headerFrom, 
+      replyTo: replyToHeader || headerFrom, // Default reply-to to headerFrom
       to, 
       subject, 
       text, 

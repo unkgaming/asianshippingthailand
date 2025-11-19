@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -45,10 +45,38 @@ export default function EmployeePortalPage() {
   const [showDatabaseModal, setShowDatabaseModal] = useState(false);
   const [databasePassword, setDatabasePassword] = useState('');
   const [databaseUnlocked, setDatabaseUnlocked] = useState(false);
-  const [databaseView, setDatabaseView] = useState<'shipments'|'inquiries'|'emails'|'users'>('shipments');
+  const [databaseView, setDatabaseView] = useState<'shipments'|'inquiries'|'emails'|'staffDirectory'|'users'>('shipments');
   const [databaseData, setDatabaseData] = useState<any[]>([]);
   const [databaseLoading, setDatabaseLoading] = useState(false);
   const [selectedDbRecord, setSelectedDbRecord] = useState<any>(null);
+  // Email Accounts state
+  const [staffDirectory, setStaffDirectory] = useState<any[]>([]);
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [accAddress, setAccAddress] = useState('');
+  const [accUsername, setAccUsername] = useState('');
+  const [accPassword, setAccPassword] = useState('');
+  const [accType, setAccType] = useState<'customer'|'staff'>('customer');
+  const [editingAccount, setEditingAccount] = useState<any>(null);
+  // Add Email modal (database)
+  const [showAddEmailModal, setShowAddEmailModal] = useState(false);
+  const [dbEmailFrom, setDbEmailFrom] = useState('info@asianshippingthai.com');
+  const [dbEmailTo, setDbEmailTo] = useState('');
+  const [dbEmailSubject, setDbEmailSubject] = useState('');
+  const [dbEmailText, setDbEmailText] = useState('');
+  // Account sync state
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const [accountRoles, setAccountRoles] = useState<Record<string, string>>({});
+  
+  // News state
+  const [newsArticles, setNewsArticles] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [editingNews, setEditingNews] = useState<any>(null);
+  const [showNewsForm, setShowNewsForm] = useState(false);
+  const [newsTitle, setNewsTitle] = useState('');
+  const [newsExcerpt, setNewsExcerpt] = useState('');
+  const [newsContent, setNewsContent] = useState('');
+  const [newsImageUrl, setNewsImageUrl] = useState('');
+  const [newsPublished, setNewsPublished] = useState(false);
   const [showDbRecordModal, setShowDbRecordModal] = useState(false);
   
   useEffect(() => {
@@ -105,11 +133,64 @@ export default function EmployeePortalPage() {
     }).catch((err)=>{
       console.error('[Admin Portal] Failed to load inquiries:', err);
     });
+    // Load email accounts for labeling and management
+    fetch('/api/email-accounts').then(r=>r.json()).then(res=>{
+      if (res?.ok && res.data) {
+        setStaffDirectory(res.data);
+        // Fetch user roles for each account
+        res.data.forEach((acc: any) => {
+          fetch(`/api/users?email=${encodeURIComponent(acc.address)}`)
+            .then(r2=>r2.json())
+            .then(u=>{
+              if (u?.user?.role) {
+                setAccountRoles(prev => ({...prev, [acc.id]: u.user.role}));
+              }
+            })
+            .catch(()=>{});
+        });
+      }
+    }).catch(()=>{});
     return () => {
       // eslint-disable-next-line no-console
       console.log('[Portal] unmounted');
     };
   }, []);
+
+  // Lightweight polling for new inquiries with toast/badge updates
+  useEffect(() => {
+    let timer: any;
+    const knownIdsRef = { current: new Set<string>() } as { current: Set<string> };
+    // seed with current inquiries to avoid false-positive on first tick
+    inquiries.forEach(i => knownIdsRef.current.add(i.id));
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/inquiries?limit=50&includeReplied=true&t=${Date.now()}`);
+        const data = await res.json();
+        if (data?.inquiries && Array.isArray(data.inquiries)) {
+          const incoming = data.inquiries as any[];
+          // Find truly new inquiries by id not present locally
+          const currentIds = new Set(inquiries.map(i => i.id));
+          const newOnes = incoming.filter(i => !currentIds.has(i.id));
+          if (newOnes.length > 0) {
+            setInquiries(incoming);
+            const newCountNewStatus = newOnes.filter(i => (i.status === 'new' || !i.status)).length;
+            const countToShow = newCountNewStatus > 0 ? newCountNewStatus : newOnes.length;
+            setNotification({ type: 'success', message: `📥 ${countToShow} new quote request${countToShow>1?'s':''} received` });
+            setTimeout(() => setNotification(null), 4000);
+          }
+        }
+      } catch (err) {
+        // silent fail for lightweight poll
+      }
+    };
+
+    // start polling every 30s
+    timer = setInterval(poll, 30000);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [inquiries]);
 
   // Redirect if unauthenticated; if logged in but not employee, send to customer portal
   useEffect(() => {
@@ -176,6 +257,23 @@ export default function EmployeePortalPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Fetch news articles when news section is active
+  useEffect(() => {
+    if (activeSection === 'news') {
+      setNewsLoading(true);
+      fetch('/api/news')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) setNewsArticles(data.data);
+          setNewsLoading(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch news:', err);
+          setNewsLoading(false);
+        });
+    }
+  }, [activeSection]);
 
   if (isLoading || status === 'loading') {
     return (
@@ -640,7 +738,7 @@ export default function EmployeePortalPage() {
     }
   };
 
-  const loadDatabaseData = async (table: 'shipments'|'inquiries'|'emails'|'users') => {
+  const loadDatabaseData = async (table: 'shipments'|'inquiries'|'emails'|'staffDirectory'|'users') => {
     setDatabaseLoading(true);
     setDatabaseView(table);
     try {
@@ -655,6 +753,9 @@ export default function EmployeePortalPage() {
         case 'emails':
           endpoint = '/api/database/emails';
           break;
+        case 'staffDirectory':
+          endpoint = '/api/email-accounts';
+          break;
         case 'users':
           endpoint = '/api/users';
           break;
@@ -664,6 +765,8 @@ export default function EmployeePortalPage() {
       if (table === 'inquiries') {
         setDatabaseData(data.inquiries || []);
       } else if (table === 'emails') {
+        setDatabaseData(data.data || []);
+      } else if (table === 'staffDirectory') {
         setDatabaseData(data.data || []);
       } else if (table === 'shipments') {
         setDatabaseData(data.data || []);
@@ -675,6 +778,38 @@ export default function EmployeePortalPage() {
       setDatabaseData([]);
     }
     setDatabaseLoading(false);
+  };
+
+  const handleEnableStaffLogin = async (account: any) => {
+    setSyncingAccountId(account.id);
+    try {
+      // Call single-account sync
+      const res = await fetch(`/api/email-accounts?id=${account.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountType: account.accountType,
+          password: account.password, // Re-submit to trigger sync
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Fetch updated role
+        const userRes = await fetch(`/api/users?email=${encodeURIComponent(account.address)}`);
+        const userData = await userRes.json();
+        if (userData?.user?.role) {
+          setAccountRoles(prev => ({...prev, [account.id]: userData.user.role}));
+        }
+        setNotification({ type: 'success', message: '✅ Login synced! Sign out and back in to use this account.' });
+        setTimeout(() => setNotification(null), 4000);
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (err: any) {
+      setNotification({ type: 'error', message: `❌ Sync failed: ${err.message}` });
+      setTimeout(() => setNotification(null), 4000);
+    }
+    setSyncingAccountId(null);
   };
 
   const handlePermanentDelete = async (record: any) => {
@@ -695,6 +830,9 @@ export default function EmployeePortalPage() {
           break;
         case 'emails':
           endpoint = `/api/database/emails?id=${record.id}`;
+          break;
+        case 'emailAccounts':
+          endpoint = `/api/email-accounts?id=${record.id}`;
           break;
         case 'users':
           alert('Cannot delete users from this interface');
@@ -754,12 +892,8 @@ export default function EmployeePortalPage() {
     setShowInquiryModal(true);
   };
 
-  const handleReplyToQuote = (inquiry: any) => {
-    const customerName = inquiry.name;
-    const email = inquiry.email;
-    setReplyingToInquiryId(inquiry.id); // Track which inquiry we're replying to
-    setEmailTo(email);
-    setEmailSubject(`RE: Quote Request - ${customerName}`);
+  const openMailClientForQuote = (inquiry: any) => {
+    const customerName = inquiry.name || '';
     const details = [
       inquiry.company ? `Company: ${inquiry.company}` : null,
       inquiry.service ? `Service: ${String(inquiry.service).toUpperCase()}` : null,
@@ -768,25 +902,42 @@ export default function EmployeePortalPage() {
       inquiry.phone ? `Phone: ${inquiry.phone}` : null,
       `Email: ${inquiry.email}`,
     ].filter(Boolean).join('\n');
-    setEmailMessage(`Dear ${customerName},
+    const subject = `RE: Quote Request - ${customerName}`;
+    const body = `Dear ${customerName},\n\nThank you for your quote request. Below is a summary of your inquiry:\n\n${details}\n\nWe will prepare the best possible rate and transit details for you. If anything above needs correction, please reply to this email.\n\nBest regards,\nAsian Shipping Thai Team`;
+    const mailtoUrl = `mailto:${encodeURIComponent(inquiry.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+  };
 
-Thank you for your quote request. Below is a summary of your inquiry:
-
-${details}
-
-We will prepare the best possible rate and transit details for you. If anything above needs correction, please reply to this email.
-
-Best regards,
-Asian Shipping Thai Team`);
-    // Jump to compose form for a faster workflow
-    setTimeout(() => {
-      const emailForm = document.getElementById('email-compose-form');
-      if (emailForm) {
-        emailForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setNotification({ type: 'success', message: `📧 Email form filled for ${customerName}` });
+  const markInquiryResponded = async (inquiryId: string) => {
+    try {
+      const res = await fetch(`/api/inquiries?id=${inquiryId}&action=status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'responded' })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setInquiries(prev => prev.map(i => i.id === inquiryId ? { ...i, status: 'responded' } : i));
+        setNotification({ type: 'success', message: '✅ Marked as responded' });
         setTimeout(() => setNotification(null), 3000);
+      } else {
+        throw new Error(data?.error || 'Failed to update status');
       }
-    }, 100);
+    } catch (err) {
+      setNotification({ type: 'error', message: '❌ Could not mark as responded' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleReplyToQuote = async (inquiry: any) => {
+    openMailClientForQuote(inquiry);
+    // Optional quick prompt to mark responded
+    setTimeout(async () => {
+      // Give the mail app a moment to open first
+      if (confirm('Mark this inquiry as responded?')) {
+        await markInquiryResponded(inquiry.id);
+      }
+    }, 400);
   };
 
   const handleCreateEmailFromCell = (inquiry: any) => {
@@ -979,6 +1130,16 @@ Asian Shipping Thai Team`);
             onClick={() => setActiveSection('tracking')}
           >
               <span className="mr-3 text-lg">🔍</span> Track Shipment
+          </button>
+          <button
+            className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
+              activeSection === 'news'
+                ? 'bg-red-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800'
+            }`}
+            onClick={() => setActiveSection('news')}
+          >
+              <span className="mr-3 text-lg">📰</span> Manage News
           </button>
           <button
             className={`flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition ${
@@ -2160,6 +2321,254 @@ Asian Shipping Thai Team`);
           </motion.div>
         )}
 
+        {/* News Management Section */}
+        {activeSection === 'news' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-800">Manage News</h2>
+              <button
+                onClick={() => {
+                  setShowNewsForm(true);
+                  setEditingNews(null);
+                  setNewsTitle('');
+                  setNewsExcerpt('');
+                  setNewsContent('');
+                  setNewsImageUrl('');
+                  setNewsPublished(false);
+                }}
+                className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
+              >
+                <span>➕</span> Create News Article
+              </button>
+            </div>
+
+            {/* News Form Modal */}
+            {showNewsForm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="p-8">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6">
+                      {editingNews ? 'Edit Article' : 'Create New Article'}
+                    </h3>
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                          const url = '/api/news';
+                          const method = editingNews ? 'PUT' : 'POST';
+                          const body = editingNews
+                            ? { id: editingNews.id, title: newsTitle, excerpt: newsExcerpt, content: newsContent, imageUrl: newsImageUrl, published: newsPublished }
+                            : { title: newsTitle, excerpt: newsExcerpt, content: newsContent, imageUrl: newsImageUrl, published: newsPublished };
+
+                          const res = await fetch(url, {
+                            method,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body),
+                          });
+
+                          const data = await res.json();
+                          if (res.ok && data.ok) {
+                            setNotification({ type: 'success', message: editingNews ? '✅ Article updated!' : '✅ Article created!' });
+                            setShowNewsForm(false);
+                            // Refresh news list
+                            const newsRes = await fetch('/api/news');
+                            const newsData = await newsRes.json();
+                            if (newsData.ok) setNewsArticles(newsData.data);
+                          } else {
+                            setNotification({ type: 'error', message: `❌ ${data.error || 'Failed to save article'}` });
+                          }
+                          setTimeout(() => setNotification(null), 3000);
+                        } catch (error) {
+                          setNotification({ type: 'error', message: '❌ Failed to save article' });
+                          setTimeout(() => setNotification(null), 3000);
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                        <input
+                          type="text"
+                          value={newsTitle}
+                          onChange={(e) => setNewsTitle(e.target.value)}
+                          required
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          placeholder="Article title"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Excerpt</label>
+                        <textarea
+                          value={newsExcerpt}
+                          onChange={(e) => setNewsExcerpt(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          rows={2}
+                          placeholder="Short preview text (optional)"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Content *</label>
+                        <textarea
+                          value={newsContent}
+                          onChange={(e) => setNewsContent(e.target.value)}
+                          required
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          rows={10}
+                          placeholder="Full article content"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
+                        <input
+                          type="url"
+                          value={newsImageUrl}
+                          onChange={(e) => setNewsImageUrl(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          placeholder="https://example.com/image.jpg (optional)"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="newsPublished"
+                          checked={newsPublished}
+                          onChange={(e) => setNewsPublished(e.target.checked)}
+                          className="w-5 h-5"
+                        />
+                        <label htmlFor="newsPublished" className="text-sm font-medium text-gray-700">
+                          Publish immediately
+                        </label>
+                      </div>
+
+                      <div className="flex gap-4 pt-4">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+                        >
+                          {editingNews ? 'Update Article' : 'Create Article'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewsForm(false)}
+                          className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* News List */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Title</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Author</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {newsArticles.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                        No news articles yet. Create your first article!
+                      </td>
+                    </tr>
+                  ) : (
+                    newsArticles.map((article) => (
+                      <tr key={article.id} className="border-t hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-800">{article.title}</div>
+                          {article.excerpt && (
+                            <div className="text-sm text-gray-500 mt-1 line-clamp-1">{article.excerpt}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            article.published
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {article.published ? 'Published' : 'Draft'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{article.author}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {new Date(article.publishedAt || article.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => {
+                              setEditingNews(article);
+                              setNewsTitle(article.title);
+                              setNewsExcerpt(article.excerpt || '');
+                              setNewsContent(article.content);
+                              setNewsImageUrl(article.imageUrl || '');
+                              setNewsPublished(article.published);
+                              setShowNewsForm(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 mr-3"
+                          >
+                            Edit
+                          </button>
+                          <a
+                            href={`/news/${article.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-800 mr-3"
+                          >
+                            View
+                          </a>
+                          <button
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to delete this article?')) {
+                                try {
+                                  const res = await fetch(`/api/news?id=${article.id}`, { method: 'DELETE' });
+                                  const data = await res.json();
+                                  if (res.ok && data.ok) {
+                                    setNotification({ type: 'success', message: '✅ Article deleted!' });
+                                    // Refresh news list
+                                    const newsRes = await fetch('/api/news');
+                                    const newsData = await newsRes.json();
+                                    if (newsData.ok) setNewsArticles(newsData.data);
+                                  } else {
+                                    setNotification({ type: 'error', message: '❌ Failed to delete article' });
+                                  }
+                                  setTimeout(() => setNotification(null), 3000);
+                                } catch (error) {
+                                  setNotification({ type: 'error', message: '❌ Failed to delete article' });
+                                  setTimeout(() => setNotification(null), 3000);
+                                }
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
         {/* Settings Section */}
         {activeSection === 'settings' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -2293,12 +2702,7 @@ Asian Shipping Thai Team`);
                     </button>
                   )}
                 </div>
-                <button 
-                  onClick={handleComposeEmail}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-                >
-                  Compose Email
-                </button>
+                <div className="text-sm text-gray-500">Emails open in your default mail client.</div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -2414,7 +2818,13 @@ Asian Shipping Thai Team`);
                                     onClick={() => handleReplyToQuote(inquiry)}
                                     className="text-green-600 hover:text-green-800 text-sm"
                                   >
-                                    Reply
+                                    Open in Email Client
+                                  </button>
+                                  <button
+                                    onClick={() => markInquiryResponded(inquiry.id)}
+                                    className="text-gray-600 hover:text-gray-800 text-sm ml-3"
+                                  >
+                                    Mark Responded
                                   </button>
                                   <button
                                     onClick={() => handleDeleteInquiry(inquiry.id)}
@@ -2434,78 +2844,10 @@ Asian Shipping Thai Team`);
               </div>
             </div>
 
-            {/* Quick Email Form */}
+            {/* Email sending moved to external client */}
             <div id="email-compose-form" className="bg-white rounded-xl shadow-lg p-8">
-              <h3 className="text-xl font-bold mb-6">Send Quote Response</h3>
-              <form onSubmit={handleSendEmail} className="space-y-6">
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
-                    <select value={emailFrom} onChange={e=>setEmailFrom(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2">
-                      {fromOptions.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer Email</label>
-                    <input
-                      type="email"
-                      value={emailTo}
-                      onChange={(e) => setEmailTo(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                      placeholder="customer@example.com"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                    <input
-                      type="text"
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                      placeholder="RE: Quote Request"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                  <textarea
-                    rows={8}
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                    placeholder="Dear Customer,&#10;&#10;Thank you for your quote request...&#10;&#10;Best regards,&#10;asianshippingthai Team"
-                    required
-                  ></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attach Quote Document</label>
-                  <input
-                    type="file"
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                  >
-                    Send Email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmailTo('');
-                      setEmailSubject('');
-                      setEmailMessage('');
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </form>
+              <h3 className="text-xl font-bold mb-2">Email Responses</h3>
+              <p className="text-gray-600 text-sm">In-app sending has been removed. Use your email client via the “Open in Email Client” buttons. You can log emails in the Database → Emails tab with “Add Email”.</p>
             </div>
 
             {/* Outbox */}
@@ -2749,11 +3091,27 @@ Asian Shipping Thai Team`);
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="grid grid-cols-4 gap-2">
                   <span className="font-semibold text-gray-700">From:</span>
-                  <span className="col-span-3 text-gray-900">{selectedEmail.from}</span>
+                  <span className="col-span-3 text-gray-900">
+                    {selectedEmail.from}
+                    {(() => {
+                      const acc = staffDirectory.find(a => a.address?.toLowerCase() === String(selectedEmail.from || '').toLowerCase());
+                      return acc ? (
+                        <span className={`ml-2 px-2 py-0.5 rounded text-xs ${acc.accountType==='staff'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{acc.accountType}</span>
+                      ) : null;
+                    })()}
+                  </span>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   <span className="font-semibold text-gray-700">To:</span>
-                  <span className="col-span-3 text-gray-900">{selectedEmail.to}</span>
+                  <span className="col-span-3 text-gray-900">
+                    {selectedEmail.to}
+                    {(() => {
+                      const acc = staffDirectory.find(a => a.address?.toLowerCase() === String(selectedEmail.to || '').toLowerCase());
+                      return acc ? (
+                        <span className={`ml-2 px-2 py-0.5 rounded text-xs ${acc.accountType==='staff'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{acc.accountType}</span>
+                      ) : null;
+                    })()}
+                  </span>
                 </div>
                 {selectedEmail.sentAt && (
                   <div className="grid grid-cols-4 gap-2">
@@ -2895,6 +3253,22 @@ Asian Shipping Thai Team`);
                   >
                     📧 Emails ({databaseView === 'emails' ? databaseData.length : '...'})
                   </button>
+                  <button
+                    onClick={() => loadDatabaseData('staffDirectory')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${
+                      databaseView === 'staffDirectory' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    👔 Staff Directory ({databaseView === 'staffDirectory' ? databaseData.length : '...'})
+                  </button>
+                  <button
+                    onClick={() => loadDatabaseData('users')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${
+                      databaseView === 'users' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    👥 Users ({databaseView === 'users' ? databaseData.length : '...'})
+                  </button>
                 </div>
 
                 {/* Data Display */}
@@ -2905,6 +3279,26 @@ Asian Shipping Thai Team`);
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
+                    {databaseView === 'emails' && (
+                      <div className="mb-3 flex justify-end">
+                        <button
+                          onClick={() => setShowAddEmailModal(true)}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
+                        >
+                          + Add Email
+                        </button>
+                      </div>
+                    )}
+                    {databaseView === 'staffDirectory' && (
+                      <div className="mb-3 flex justify-end">
+                        <button
+                          onClick={() => { setEditingAccount(null); setAccAddress(''); setAccUsername(''); setAccPassword(''); setAccType('customer'); setShowAddAccountModal(true); }}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
+                        >
+                          + Add Staff Contact
+                        </button>
+                      </div>
+                    )}
                     <div className="mb-4 text-sm text-gray-600">
                       Total Records: <span className="font-bold">{databaseData.length}</span>
                       {databaseView === 'inquiries' && (
@@ -2957,6 +3351,26 @@ Asian Shipping Thai Team`);
                               <th className="px-3 py-2 text-left border">Hidden</th>
                               <th className="px-3 py-2 text-left border">Created</th>
                               <th className="px-3 py-2 text-left border">Sent</th>
+                            </>
+                          )}
+                          {databaseView === 'staffDirectory' && (
+                            <>
+                              <th className="px-3 py-2 text-left border">Email Address</th>
+                              <th className="px-3 py-2 text-left border">Name</th>
+                              <th className="px-3 py-2 text-left border">Type</th>
+                              <th className="px-3 py-2 text-left border">Active</th>
+                              <th className="px-3 py-2 text-left border">Created</th>
+                              <th className="px-3 py-2 text-left border">Login Status</th>
+                            </>
+                          )}
+                          {databaseView === 'users' && (
+                            <>
+                              <th className="px-3 py-2 text-left border">Name</th>
+                              <th className="px-3 py-2 text-left border">Email</th>
+                              <th className="px-3 py-2 text-left border">Role</th>
+                              <th className="px-3 py-2 text-left border">Provider</th>
+                              <th className="px-3 py-2 text-left border">Created</th>
+                              <th className="px-3 py-2 text-center border">Actions</th>
                             </>
                           )}
                         </tr>
@@ -3031,6 +3445,75 @@ Asian Shipping Thai Team`);
                                 <td className="px-3 py-2 border text-xs">{row.sentAt ? new Date(row.sentAt).toLocaleDateString() : '-'}</td>
                               </>
                             )}
+                            {databaseView === 'users' && (
+                              <>
+                                <td className="px-3 py-2 border">{row.name || '-'}</td>
+                                <td className="px-3 py-2 border text-xs">{row.email}</td>
+                                <td className="px-3 py-2 border">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    row.role === 'employee' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {row.role === 'employee' ? '👔 Staff' : '👤 Customer'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 border">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    row.provider === 'google' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {row.provider === 'google' ? '🔴 Google' : '🔑 Email'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 border text-xs">{new Date(row.createdAt).toLocaleDateString()}</td>
+                                <td className="px-3 py-2 border text-center" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`Are you sure you want to permanently delete user "${row.email}"? This action cannot be undone.`)) return;
+                                      try {
+                                        const res = await fetch(`/api/users/${row.id}`, { method: 'DELETE' });
+                                        const data = await res.json();
+                                        if (data.ok) {
+                                          alert('User deleted successfully');
+                                          loadDatabaseData('users');
+                                        } else {
+                                          alert(data.error || 'Failed to delete user');
+                                        }
+                                      } catch (err) {
+                                        alert('Failed to delete user');
+                                      }
+                                    }}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </td>
+                              </>
+                            )}
+                            {databaseView === 'staffDirectory' && (
+                              <>
+                                <td className="px-3 py-2 border text-xs">{row.address}</td>
+                                <td className="px-3 py-2 border text-xs">{row.username}</td>
+                                <td className="px-3 py-2 border"><span className={`px-2 py-1 rounded-full text-xs ${row.accountType==='staff'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>{row.accountType}</span></td>
+                                <td className="px-3 py-2 border">{row.active ? '✓' : '—'}</td>
+                                <td className="px-3 py-2 border text-xs">{new Date(row.createdAt).toLocaleDateString()}</td>
+                                <td className="px-3 py-2 border text-xs" onClick={(e)=>e.stopPropagation()}>
+                                  {accountRoles[row.id] ? (
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                      accountRoles[row.id]==='employee'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {accountRoles[row.id]==='employee'?'🔓 Staff':'👤 Customer'}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={()=>handleEnableStaffLogin(row)}
+                                      disabled={syncingAccountId===row.id}
+                                      className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                      {syncingAccountId===row.id?'Syncing...':'Enable Login'}
+                                    </button>
+                                  )}
+                                </td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -3057,6 +3540,7 @@ Asian Shipping Thai Team`);
                 {databaseView === 'shipments' && `📦 Shipment: ${selectedDbRecord.code}`}
                 {databaseView === 'inquiries' && `✉️ Inquiry: ${selectedDbRecord.name}`}
                 {databaseView === 'emails' && `📧 Email: ${selectedDbRecord.subject}`}
+                {databaseView === 'staffDirectory' && `👔 Staff Contact: ${selectedDbRecord.address}`}
               </h2>
               <button
                 onClick={() => setShowDbRecordModal(false)}
@@ -3144,11 +3628,165 @@ Asian Shipping Thai Team`);
               >
                 🗑️ Permanent Delete
               </button>
+              {databaseView === 'staffDirectory' && (
+                <button
+                  onClick={() => {
+                    setEditingAccount(selectedDbRecord);
+                    setAccAddress(selectedDbRecord.address || '');
+                    setAccUsername(selectedDbRecord.username || '');
+                    setAccPassword(selectedDbRecord.password || '');
+                    setAccType(selectedDbRecord.accountType === 'staff' ? 'staff' : 'customer');
+                    setShowAddAccountModal(true);
+                  }}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                  Edit
+                </button>
+              )}
               <button
                 onClick={() => setShowDbRecordModal(false)}
                 className="bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Email Modal */}
+      {showAddEmailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4" onClick={() => setShowAddEmailModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold">Add Email Record</h3>
+              <button onClick={() => setShowAddEmailModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">From</label>
+                <input type="email" value={dbEmailFrom} onChange={(e)=>setDbEmailFrom(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To *</label>
+                <input type="email" value={dbEmailTo} onChange={(e)=>setDbEmailTo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+                <input type="text" value={dbEmailSubject} onChange={(e)=>setDbEmailSubject(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message (Text)</label>
+                <textarea rows={5} value={dbEmailText} onChange={(e)=>setDbEmailText(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+            </div>
+            <div className="p-6 border-t flex justify-end gap-3">
+              <button onClick={() => setShowAddEmailModal(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!dbEmailTo || !dbEmailSubject) {
+                    alert('Please provide To and Subject');
+                    return;
+                  }
+                  try {
+                    const res = await fetch('/api/database/emails', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ from: dbEmailFrom, to: dbEmailTo, subject: dbEmailSubject, text: dbEmailText, status: 'sent', direction: 'outgoing' })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.ok) {
+                      setNotification({ type: 'success', message: '✅ Email record added' });
+                      setTimeout(() => setNotification(null), 3000);
+                      setShowAddEmailModal(false);
+                      setDbEmailTo(''); setDbEmailSubject(''); setDbEmailText('');
+                      if (databaseView === 'emails') {
+                        loadDatabaseData('emails');
+                      }
+                    } else {
+                      throw new Error(data?.error || 'Failed to add email');
+                    }
+                  } catch (err) {
+                    setNotification({ type: 'error', message: '❌ Could not add email record' });
+                    setTimeout(() => setNotification(null), 3000);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add/Edit Email Account Modal */}
+      {showAddAccountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4" onClick={() => { setShowAddAccountModal(false); setEditingAccount(null); }}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold">{editingAccount ? 'Edit Staff Contact' : 'Add Staff Contact'}</h3>
+              <button onClick={() => { setShowAddAccountModal(false); setEditingAccount(null); }} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                <input type="email" value={accAddress} onChange={(e)=>setAccAddress(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                  <input type="text" value={accUsername} onChange={(e)=>setAccUsername(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                  <input type="text" value={accPassword} onChange={(e)=>setAccPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                <select value={accType} onChange={(e)=>setAccType(e.target.value as any)} className="w-full border border-gray-300 rounded-lg px-4 py-2">
+                  <option value="customer">Customer</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </div>
+            </div>
+            <div className="p-6 border-t flex justify-end gap-3">
+              <button onClick={() => { setShowAddAccountModal(false); setEditingAccount(null); }} className="px-4 py-2 rounded-lg border">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!accAddress || !accUsername || !accPassword) { alert('Fill required fields'); return; }
+                  try {
+                    if (editingAccount) {
+                      const res = await fetch(`/api/email-accounts?id=${editingAccount.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address: accAddress, username: accUsername, password: accPassword, accountType: accType })
+                      });
+                      const data = await res.json();
+                      if (!res.ok || !data.ok) throw new Error(data?.error || 'Failed');
+                    } else {
+                      const res = await fetch('/api/email-accounts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address: accAddress, username: accUsername, password: accPassword, accountType: accType })
+                      });
+                      const data = await res.json();
+                      if (!res.ok || !data.ok) throw new Error(data?.error || 'Failed');
+                    }
+                    setNotification({ type: 'success', message: editingAccount ? '✅ Contact updated' : '✅ Contact added' });
+                    setTimeout(() => setNotification(null), 3000);
+                    setShowAddAccountModal(false); setEditingAccount(null);
+                    loadDatabaseData('staffDirectory');
+                    // refresh staff directory cache
+                    fetch('/api/email-accounts').then(r=>r.json()).then(res=>{ if(res?.ok) setStaffDirectory(res.data); });
+                  } catch (err) {
+                    setNotification({ type: 'error', message: '❌ Could not save account' });
+                    setTimeout(() => setNotification(null), 3000);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Save
               </button>
             </div>
           </div>

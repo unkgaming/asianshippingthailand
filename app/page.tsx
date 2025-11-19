@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HomePage() {
   return (
@@ -44,6 +45,8 @@ function HeroSlider() {
     },
   ];
   const [current, setCurrent] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -61,8 +64,38 @@ function HeroSlider() {
     setCurrent((current) => (current === slides.length - 1 ? 0 : current + 1));
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe) {
+      nextSlide();
+    }
+    if (isRightSwipe) {
+      prevSlide();
+    }
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   return (
-    <section className="relative w-full h-screen overflow-hidden">
+    <section 
+      className="relative w-full h-screen overflow-hidden" 
+      aria-label="Hero carousel"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <AnimatePresence mode="wait">
         {slides.map((slide, index) =>
           index === current ? (
@@ -76,16 +109,20 @@ function HeroSlider() {
             >
               {/* Background Image */}
               <div className="absolute inset-0">
-                <img
+                <Image
                   src={slide.image}
                   alt={slide.title}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  priority={index === 0}
+                  quality={85}
+                  sizes="100vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/60"></div>
               </div>
 
               {/* Content */}
-              <div className="relative h-full flex items-center">
+              <div className="relative h-full flex items-center" role="tabpanel" aria-live="polite">
                 <div className="max-w-6xl mx-auto px-4 text-center w-full">
                   <motion.div
                     initial={{ y: 30, opacity: 0 }}
@@ -138,12 +175,15 @@ function HeroSlider() {
       </AnimatePresence>
 
       {/* Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-3 z-20">
-        {slides.map((_, index) => (
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-3 z-20" role="tablist" aria-label="Carousel navigation">
+        {slides.map((slide, index) => (
           <button
             key={index}
             onClick={() => setCurrent(index)}
-            className={`w-3 h-3 rounded-full transition-all ${
+            role="tab"
+            aria-selected={index === current}
+            aria-label={`Go to slide ${index + 1}: ${slide.title}`}
+            className={`w-3 h-3 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-white ${
               index === current 
                 ? 'bg-red-600 w-8' 
                 : 'bg-white/50 hover:bg-white/75'
@@ -155,17 +195,19 @@ function HeroSlider() {
       {/* Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute top-1/2 left-5 transform -translate-y-1/2 bg-white/10 backdrop-blur-sm text-white p-4 rounded-full hover:bg-white/20 transition z-20 group"
+        aria-label="Previous slide"
+        className="absolute top-1/2 left-5 transform -translate-y-1/2 bg-white/10 backdrop-blur-sm text-white p-4 rounded-full hover:bg-white/20 transition z-20 group focus:outline-none focus:ring-2 focus:ring-white"
       >
-        <svg className="w-6 h-6 group-hover:-translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6 group-hover:-translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
       <button
         onClick={nextSlide}
-        className="absolute top-1/2 right-5 transform -translate-y-1/2 bg-white/10 backdrop-blur-sm text-white p-4 rounded-full hover:bg-white/20 transition z-20 group"
+        aria-label="Next slide"
+        className="absolute top-1/2 right-5 transform -translate-y-1/2 bg-white/10 backdrop-blur-sm text-white p-4 rounded-full hover:bg-white/20 transition z-20 group focus:outline-none focus:ring-2 focus:ring-white"
       >
-        <svg className="w-6 h-6 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </button>
@@ -401,10 +443,13 @@ function GlobalNetworkSection() {
     <section className="relative py-20 overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80"
-          alt="Global Network"
-          className="w-full h-full object-cover"
+          alt="Global logistics network visualization"
+          fill
+          className="object-cover"
+          quality={75}
+          sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/95 to-gray-800/95"></div>
       </div>
@@ -468,25 +513,22 @@ function GlobalNetworkSection() {
 function TestimonialsSection() {
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      company: "Global Imports Ltd",
-      text: "asianshippingthai has transformed our supply chain. Their reliability and speed are unmatched in the industry.",
+      name: "David Thompson",
+      company: "Import/Export Business",
+      text: "We've been working with Asian Shipping for over 5 years. Their customs clearance expertise and consistent on-time delivery have made them our go-to logistics partner.",
       rating: 5,
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80"
     },
     {
-      name: "Michael Chen",
-      company: "Tech Solutions Inc",
-      text: "The real-time tracking and exceptional customer support make every shipment stress-free. Highly recommended!",
+      name: "Melissa Wong",
+      company: "Electronics Trading Co.",
+      text: "The team at Asian Shipping handles our air freight with exceptional care. Real-time tracking and proactive communication make every shipment smooth and worry-free.",
       rating: 5,
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&q=80"
     },
     {
-      name: "Emma Wilson",
-      company: "Fashion World",
-      text: "Competitive pricing without compromising quality. They handle our LCL shipments with precision every time.",
+      name: "Robert Martinez",
+      company: "Manufacturing Solutions",
+      text: "Competitive rates, professional service, and reliable FCL handling. Asian Shipping consistently delivers beyond our expectations for our container shipments from Bangkok.",
       rating: 5,
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&q=80"
     }
   ];
 
@@ -516,18 +558,9 @@ function TestimonialsSection() {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
             >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden ring-4 ring-red-100">
-                  <img
-                    src={testimonial.avatar}
-                    alt={testimonial.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-gray-800">{testimonial.name}</h3>
-                  <p className="text-sm text-gray-600">{testimonial.company}</p>
-                </div>
+              <div className="mb-4">
+                <h3 className="font-bold text-lg text-gray-800">{testimonial.name}</h3>
+                <p className="text-sm text-gray-600">{testimonial.company}</p>
               </div>
 
               <div className="flex mb-4">

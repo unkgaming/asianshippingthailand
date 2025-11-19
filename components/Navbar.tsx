@@ -8,6 +8,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,9 +41,27 @@ export default function Navbar() {
         <Link href="/" className="font-extrabold text-[var(--primary)] text-xl">
           asianshippingthai
         </Link>
+        
+        {/* Mobile menu button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-red-600"
+          aria-label="Toggle menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {mobileMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <Link href="/" className="hover:text-[var(--accent)]">Home</Link>
           <Link href="/services" className="hover:text-[var(--accent)]">Services</Link>
+          <Link href="/news" className="hover:text-[var(--accent)]">News</Link>
           <Link href="/portal" className="hover:text-[var(--accent)]">Portal</Link>
           <Link href="/admin" className="hover:text-[var(--accent)] flex items-center gap-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,6 +118,48 @@ export default function Navbar() {
             <Link href="/auth/login" className="btn-primary text-sm">Login</Link>
           )}
         </nav>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="absolute top-16 left-0 w-full bg-white shadow-lg md:hidden border-t border-gray-200">
+            <nav className="container-max py-4 flex flex-col gap-2">
+              <Link href="/" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Home</Link>
+              <Link href="/services" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Services</Link>
+              <Link href="/news" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>News</Link>
+              <Link href="/portal" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Portal</Link>
+              <Link href="/admin" className="px-4 py-3 hover:bg-gray-50 rounded-lg flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Staff Login
+              </Link>
+              {user ? (
+                <div className="px-4 py-2 border-t border-gray-200 mt-2">
+                  <p className="text-sm font-medium text-gray-900 mb-1">{user.name}</p>
+                  <p className="text-xs text-gray-500 mb-3">{user.email}</p>
+                  <Link
+                    href={user.role === 'employee' ? '/admin/portal' : '/portal'}
+                    className="block px-4 py-2 text-sm bg-gray-100 rounded-lg mb-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    🏠 My Portal
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg"
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              ) : (
+                <Link href="/auth/login" className="mx-4 mt-2 btn-primary text-sm text-center" onClick={() => setMobileMenuOpen(false)}>Login</Link>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

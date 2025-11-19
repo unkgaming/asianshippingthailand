@@ -14,6 +14,9 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             <li><a href="/" className="hover:text-[var(--accent)]">Home</a></li>
             <li><a href="/services" className="hover:text-[var(--accent)]">Services</a></li>
+            <li><a href="/news" className="hover:text-[var(--accent)]">News</a></li>
+            <li><a href="/about" className="hover:text-[var(--accent)]">About Us</a></li>
+            <li><a href="/contact" className="hover:text-[var(--accent)]">Contact</a></li>
             <li><a href="/portal" className="hover:text-[var(--accent)]">Customer Portal</a></li>
             <li><a href="/admin" className="hover:text-[var(--accent)] flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,8 +37,16 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-white/20 py-4 text-center text-sm text-gray-300">
-        © {new Date().getFullYear()} asianshippingthai. All rights reserved.
+      <div className="border-t border-white/20 py-4">
+        <div className="container-max flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-300">
+          <div>
+            © {new Date().getFullYear()} asianshippingthai. All rights reserved.
+          </div>
+          <div className="flex gap-6">
+            <a href="/privacy" className="hover:text-[var(--accent)]">Privacy Policy</a>
+            <a href="/terms" className="hover:text-[var(--accent)]">Terms of Service</a>
+          </div>
+        </div>
       </div>
     </footer>
   );

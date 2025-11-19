@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 export default function SignUpClient() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +48,18 @@ export default function SignUpClient() {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Registration failed");
       setSuccess(true);
-      await signIn("credentials", { email, password, redirect: true, callbackUrl: "/" });
+      
+      // Check if email verification is required
+      const needsVerification = data.message?.includes("check your email");
+      
+      setTimeout(() => {
+        if (needsVerification) {
+          router.push("/auth/verify-pending");
+        } else {
+          // Auto-verified in dev mode, redirect to signin
+          router.push("/signin");
+        }
+      }, 1500);
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {
@@ -99,7 +111,7 @@ export default function SignUpClient() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
