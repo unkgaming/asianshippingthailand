@@ -6,9 +6,9 @@ import Link from 'next/link';
 export default function AboutPage() {
   const stats = [
     { number: '23+', label: 'Years Experience' },
-    { number: '50+', label: 'Countries Served' },
-    { number: '10K+', label: 'Shipments/Year' },
-    { number: '99.5%', label: 'On-Time Delivery' },
+    { number: 'Asia', label: 'Regional Focus' },
+    { number: 'Fast', label: 'Customs Clearance' },
+    { number: '1 Day', label: 'Delivery Guarantee' },
   ];
 
   const values = [
@@ -34,7 +34,38 @@ export default function AboutPage() {
     },
   ];
 
-  // Team section removed - to be added with actual team members
+  const team = [
+    {
+      name: 'Nattarin Niramitsupachet',
+      position: 'Managing Director',
+      responsibilities: 'Company leadership, partnerships, service quality',
+      email: 'annz@asianshippingthai.com'
+    },
+    {
+      name: 'Ms. Parnravee Bangnachart',
+      position: 'Import Manager',
+      responsibilities: 'Import operations, inbound customs, coordination',
+      email: 'parnravee@asianshippingthai.com'
+    },
+    {
+      name: 'Ms. Pawarasa (Pawarisa) Chaicharn',
+      position: 'CS Export',
+      responsibilities: 'Export shipments, outbound documents',
+      email: 'pawarisa@asianshippingthai.com'
+    },
+    {
+      name: 'Ms. Natcha Noitamto',
+      position: 'Accounting',
+      responsibilities: 'Billing, invoices, financial control',
+      email: 'natcha@asainshippingthai.com'
+    },
+    {
+      name: 'Nattalee Ruangpet',
+      position: 'Chinese Interpreter',
+      responsibilities: 'Chinese communication, supplier coordination',
+      email: null
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -47,10 +78,10 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              About asianshippingthai
+              About Asian Shipping Thailand
             </h1>
             <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
-              Connecting the world through reliable, efficient logistics solutions since 2002.
+              Thailand's trusted logistics partner for freight forwarding and customs brokerage since 2002.
             </p>
           </motion.div>
         </div>
@@ -93,20 +124,21 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
-                  Founded in 2000, asianshippingthai began with a simple mission: to make international
+                  Founded in 2002, Asian Shipping (Thailand) Co., Ltd. began with a simple mission: to make international
                   shipping accessible and reliable for businesses of all sizes. What started as
-                  a small freight forwarding operation in Bangkok has grown into a global
-                  logistics powerhouse.
+                  a small freight forwarding operation in Bangkok has grown into a trusted
+                  logistics partner serving clients across Asia and beyond.
                 </p>
                 <p>
-                  Today, we serve over 150 countries with a comprehensive suite of air, sea,
-                  and ground transportation services. Our network of trusted partners and
-                  state-of-the-art tracking technology ensures your cargo arrives safely and
-                  on time, every time.
+                  As a qualified customs broker in Thailand, we specialize in clearing both general 
+                  and dangerous cargo. Our expertise in air, sea, and ground transportation services, 
+                  combined with our one-day delivery guarantee for import shipments, makes us the 
+                  fastest service provider among local forwarders.
                 </p>
                 <p>
-                  We're not just moving boxes—we're connecting businesses, enabling growth,
-                  and helping our clients succeed in the global marketplace.
+                  We're not just moving boxes—we're your logistics partner, committed to fast and 
+                  reliable declaration, seamless door-to-door services, and ensuring your business 
+                  operations run smoothly across Thailand and Asia.
                 </p>
               </div>
             </motion.div>
@@ -239,6 +271,59 @@ export default function AboutPage() {
                 </div>
               </div>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Team Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+              Meet Our Team
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Experienced professionals dedicated to your success
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {team.map((member, index) => (
+              <motion.div
+                key={index}
+                className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transition border border-gray-100"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * index }}
+              >
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-3xl">👤</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                    {member.name}
+                  </h3>
+                  <p className="text-red-600 font-semibold mb-3">
+                    {member.position}
+                  </p>
+                </div>
+                <p className="text-gray-600 text-sm mb-4 text-center">
+                  {member.responsibilities}
+                </p>
+                {member.email && (
+                  <a
+                    href={`mailto:${member.email}`}
+                    className="block text-center text-sm text-blue-600 hover:text-blue-800 transition"
+                  >
+                    {member.email}
+                  </a>
+                )}
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
