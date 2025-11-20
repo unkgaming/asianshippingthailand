@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 import { generateVerificationToken } from "@/lib/auth";
-import { Resend } from "resend";
 
 export async function POST(req: Request) {
   try {
@@ -62,6 +61,7 @@ export async function POST(req: Request) {
 
         // Try Resend first (supports custom from address with verified domain)
         if (process.env.RESEND_API_KEY) {
+          const { Resend } = await import("resend");
           const resend = new Resend(process.env.RESEND_API_KEY);
           await resend.emails.send({
             from: "Asian Shipping <noreply@asianshippingthai.com>",
