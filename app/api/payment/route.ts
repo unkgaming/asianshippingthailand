@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 
 // Create payment intent for shipment
 export async function POST(req: NextRequest) {
   try {
+    // Check for Stripe configuration
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+      return NextResponse.json({ error: 'Payment system not configured' }, { status: 503 });
+    }
+
+    const { stripe } = await import('@/lib/stripe');
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,6 +80,12 @@ export async function POST(req: NextRequest) {
 // Verify payment after completion
 export async function GET(req: NextRequest) {
   try {
+    // Check for Stripe configuration
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+      return NextResponse.json({ error: 'Payment system not configured' }, { status: 503 });
+    }
+
+    const { stripe } = await import('@/lib/stripe');
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('session_id');
 
