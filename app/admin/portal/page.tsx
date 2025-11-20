@@ -831,7 +831,7 @@ export default function EmployeePortalPage() {
         case 'emails':
           endpoint = `/api/database/emails?id=${record.id}`;
           break;
-        case 'emailAccounts':
+        case 'staffDirectory':
           endpoint = `/api/email-accounts?id=${record.id}`;
           break;
         case 'users':
