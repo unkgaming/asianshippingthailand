@@ -14,8 +14,6 @@ export function generateVerificationToken(): string {
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   debug: true, // Enable debug mode to see more details
-  // Ensure correct URL in production
-  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
