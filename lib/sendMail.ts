@@ -52,10 +52,10 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
       // Use a safe sender on the SMTP domain and keep requested as reply-to
       replyToHeader = replyToHeader || requestedFrom;
       headerFrom = safeFrom;
-    } else if (smtpUser) {
-      // Fall back to the actual SMTP user to avoid provider overrides
+    } else {
+      // Force company safe sender; never expose personal SMTP user (e.g. joon13...)
       replyToHeader = replyToHeader || requestedFrom;
-      headerFrom = smtpUser;
+      headerFrom = safeFrom;
     }
   }
 
@@ -111,7 +111,7 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     return;
   }
 
-  console.log('[sendMail] Trying SMTP (Gmail)...');
+  console.log('[sendMail] Trying SMTP transport...');
   const transporter = nodemailer.createTransport({
     host,
     port: port || 587,
