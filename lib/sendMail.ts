@@ -58,6 +58,13 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     }
   }
 
+  // Enrich display name with customer identity while keeping authenticated domain
+  const customerIdentity = replyToHeader || requestedFrom;
+  if (customerIdentity && headerFrom && !headerFrom.includes('<')) {
+    const safeIdentity = customerIdentity.replace(/[\r\n<>]/g, '').slice(0,100);
+    headerFrom = `"${safeIdentity} via Asian Shipping" <${headerFrom}>`;
+  }
+
   console.log('[sendMail] Attempting to send email');
   console.log('[sendMail] From:', headerFrom, `(requested: ${requestedFrom})`);
   console.log('[sendMail] To:', to);
