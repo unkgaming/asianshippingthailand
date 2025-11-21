@@ -83,9 +83,11 @@ export async function POST(req: Request) {
     // Final fallback if still unset
     recipient = recipient || process.env.MAIL_TO || mainAddress;
     
-    const subject = `New inquiry from ${name} (${service || 'General'})`;
-    const text = `New inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`;
+    const subject = `Customer Support Email: Inquiry from ${name} (${service || 'General'})`;
+    const text = `CUSTOMER SUPPORT EMAIL\n\nNew inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`;
     const html = `<p><strong>New inquiry received</strong></p>
+             <p style="font-size:1.2em;color:#1976d2;"><strong>CUSTOMER SUPPORT EMAIL</strong></p>
+             <p><strong>New inquiry received</strong></p>
              <ul>
                <li><b>Name:</b> ${name}</li>
                <li><b>Email:</b> ${email}</li>
@@ -99,15 +101,19 @@ export async function POST(req: Request) {
              <pre style="white-space:pre-wrap">${message}</pre>
              <p>Submitted at: ${new Date().toISOString()}</p>`;
 
-    // Send notification email with customer as reply-to
-    void sendMail({
-      from: process.env.EMAIL_FROM_WEBFORM || 'webform@asianshippingthai.com',
-      replyTo: email, // Replies go directly to customer
+    // Send notification email using customer's email as requested From.
+    // sendMail will safely rewrite to company sender and embed identity.
+    console.log('[Contact API] Sending email to:', recipient);
+    await sendMail({
+      from: email,
+      replyTo: email,
       to: recipient,
       subject,
       text,
       html,
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[Contact API] Email send failed:', err);
+    });
 
     // Log as an incoming email for staff visibility in Admin -> Recent Emails
     try {

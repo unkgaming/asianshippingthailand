@@ -3,9 +3,11 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,16 +61,21 @@ export default function Navbar() {
         </button>
 
         <nav className="hidden md:flex items-center gap-6 text-sm">
-          <Link href="/" className="hover:text-[var(--accent)]">Home</Link>
-          <Link href="/services" className="hover:text-[var(--accent)]">Services</Link>
+          <Link href="/" className="hover:text-[var(--accent)]">{t('common.home')}</Link>
+          <Link href="/services" className="hover:text-[var(--accent)]">{t('common.services')}</Link>
           <Link href="/news" className="hover:text-[var(--accent)]">News</Link>
           <Link href="/portal" className="hover:text-[var(--accent)]">Portal</Link>
-          <Link href="/admin" className="hover:text-[var(--accent)] flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Staff Login
-          </Link>
+          
+          {/* Language Switcher */}
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'th' : 'en')}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition border border-gray-300"
+            title={language === 'en' ? 'Switch to Thai' : 'Switch to English'}
+          >
+            <span className="text-base">{language === 'en' ? '🇹🇭' : '🇬🇧'}</span>
+            <span className="font-medium">{language === 'en' ? 'ไทย' : 'EN'}</span>
+          </button>
+          
           {user ? (
             <div className="relative" ref={menuRef}>
               <button
@@ -123,16 +130,20 @@ export default function Navbar() {
         {mobileMenuOpen && (
           <div className="absolute top-16 left-0 w-full bg-white shadow-lg md:hidden border-t border-gray-200">
             <nav className="container-max py-4 flex flex-col gap-2">
-              <Link href="/" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Home</Link>
-              <Link href="/services" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Services</Link>
+              <Link href="/" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>{t('common.home')}</Link>
+              <Link href="/services" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>{t('common.services')}</Link>
               <Link href="/news" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>News</Link>
               <Link href="/portal" className="px-4 py-3 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Portal</Link>
-              <Link href="/admin" className="px-4 py-3 hover:bg-gray-50 rounded-lg flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Staff Login
-              </Link>
+              
+              {/* Language Switcher Mobile */}
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'th' : 'en')}
+                className="mx-4 px-4 py-3 flex items-center justify-center gap-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                <span className="text-xl">{language === 'en' ? '🇹🇭' : '🇬🇧'}</span>
+                <span className="font-medium">{language === 'en' ? 'Switch to Thai' : 'Switch to English'}</span>
+              </button>
+              
               {user ? (
                 <div className="px-4 py-2 border-t border-gray-200 mt-2">
                   <p className="text-sm font-medium text-gray-900 mb-1">{user.name}</p>

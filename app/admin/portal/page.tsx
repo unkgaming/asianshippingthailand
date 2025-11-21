@@ -1186,7 +1186,7 @@ export default function EmployeePortalPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-8 pt-24 overflow-y-auto">
         {/* Notification Banner */}
         <AnimatePresence>
           {notification && (

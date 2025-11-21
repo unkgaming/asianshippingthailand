@@ -1,23 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import QuoteRequestForm from '@/components/QuoteRequestForm';
+import SimpleContactForm from '@/components/SimpleContactForm';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ContactPage() {
-  const [sendToOptions, setSendToOptions] = useState<string[]>([]);
-
-  // Fetch available email addresses on mount
-  useEffect(() => {
-    fetch('/api/emails?options=1')
-      .then(r => r.json())
-      .then(res => {
-        if (res?.fromOptions?.length) {
-          setSendToOptions(res.fromOptions);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -29,7 +17,7 @@ export default function ContactPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            Get In Touch
+            {t('contact.getInTouch')}
           </motion.h1>
           <motion.p
             className="text-xl opacity-90"
@@ -37,7 +25,7 @@ export default function ContactPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            We're here to help with all your logistics needs
+            {t('contact.helpLogistics')}
           </motion.p>
         </div>
       </section>
@@ -47,12 +35,11 @@ export default function ContactPage() {
           {/* Contact Form */}
           <div className="lg:col-span-2">
             <motion.div
-              className="bg-white rounded-2xl shadow-xl p-8"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <QuoteRequestForm sendToOptions={sendToOptions} />
+              <SimpleContactForm />
             </motion.div>
           </div>
 

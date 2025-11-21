@@ -47,7 +47,7 @@ export default function PrivacyPage() {
                 </p>
                 <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
                   <li>Register for an account</li>
-                  <li>Request a quote or shipping services</li>
+                  <li>Contact us for shipping services</li>
                   <li>Subscribe to our newsletter</li>
                   <li>Contact us through our website</li>
                   <li>Use our shipment tracking system</li>

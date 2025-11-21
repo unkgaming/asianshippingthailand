@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function HomePage() {
   return (
@@ -20,26 +21,27 @@ export default function HomePage() {
 
 // Hero Slider Section
 function HeroSlider() {
+  const { t } = useLanguage();
   const slides = [
     { 
       id: 1, 
       image: "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=1920&q=80", 
-      title: "Global Logistics Solutions",
-      subtitle: "Connecting your business to the world with seamless air and sea freight services",
+      title: t('home.slide1Title'),
+      subtitle: t('home.slide1Subtitle'),
       icon: "🌍"
     },
     { 
       id: 2, 
       image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1920&q=80", 
-      title: "Reliable and Fast Delivery",
-      subtitle: "99.5% on-time delivery rate across 200+ ports and airports worldwide",
+      title: t('home.slide2Title'),
+      subtitle: t('home.slide2Subtitle'),
       icon: "⚡"
     },
     { 
       id: 3, 
       image: "https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1920&q=80", 
-      title: "Worldwide Cargo Network",
-      subtitle: "Trusted by businesses globally for their shipping and logistics needs",
+      title: t('home.slide3Title'),
+      subtitle: t('home.slide3Subtitle'),
       icon: "🚢"
     },
   ];
@@ -157,13 +159,13 @@ function HeroSlider() {
                       href="/services"
                       className="bg-red-600 text-white px-8 py-4 rounded-full font-semibold hover:bg-red-700 transition shadow-lg hover:shadow-xl"
                     >
-                      Explore Services
+                      {t('common.services')}
                     </Link>
                     <Link 
                       href="/contact"
                       className="bg-white text-gray-900 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition shadow-lg"
                     >
-                      Get a Quote
+                      {t('common.contact')}
                     </Link>
                   </motion.div>
                 </div>
@@ -216,11 +218,12 @@ function HeroSlider() {
 
 // Stats Section
 function StatsSection() {
+  const { t } = useLanguage();
   const stats = [
-    { number: '500+', label: 'Weekly Flights', icon: '✈️', color: 'from-blue-500 to-blue-600' },
-    { number: '200+', label: 'Global Ports', icon: '⚓', color: 'from-cyan-500 to-cyan-600' },
-    { number: '10K+', label: 'Happy Clients', icon: '😊', color: 'from-green-500 to-green-600' },
-    { number: '99.5%', label: 'On-Time Rate', icon: '⏱️', color: 'from-red-500 to-red-600' }
+    { number: '500+', label: t('home.weeklyFlights'), icon: '✈️', color: 'from-blue-500 to-blue-600' },
+    { number: '200+', label: t('home.globalPorts'), icon: '⚓', color: 'from-cyan-500 to-cyan-600' },
+    { number: '10K+', label: t('home.happyClients'), icon: '😊', color: 'from-green-500 to-green-600' },
+    { number: '99.5%', label: t('home.onTimeRate'), icon: '⏱️', color: 'from-red-500 to-red-600' }
   ];
 
   return (
@@ -250,36 +253,37 @@ function StatsSection() {
 
 // Services Section
 function ServicesSection() {
+  const { t } = useLanguage();
   const services = [
     { 
-      title: "Air Freight", 
+      title: t('home.airFreight'), 
       icon: "✈️",
-      description: "Fast and reliable air cargo delivery to destinations worldwide",
-      features: ["Express Delivery", "Real-time Tracking", "Customs Support"],
+      description: t('home.airFreightDesc'),
+      features: [t('home.expressDelivery'), t('home.realTimeTracking'), t('home.customsSupport')],
       gradient: "from-blue-500 to-blue-700",
       link: "/services/airfreight"
     },
     { 
-      title: "Sea Freight FCL", 
+      title: t('home.seaFreightFCL'), 
       icon: "🚢",
-      description: "Full container load shipping for large-scale cargo needs",
-      features: ["Container Options", "Competitive Rates", "Global Network"],
+      description: t('home.seaFreightFCLDesc'),
+      features: [t('home.containerOptions'), t('home.competitiveRates'), t('home.globalNetworkFeature')],
       gradient: "from-cyan-500 to-cyan-700",
       link: "/services/fcl"
     },
     { 
-      title: "Sea Freight LCL", 
+      title: t('home.seaFreightLCL'), 
       icon: "📦",
-      description: "Cost-effective solution for smaller shipments",
-      features: ["Flexible Scheduling", "Consolidation", "Weekly Departures"],
+      description: t('home.seaFreightLCLDesc'),
+      features: [t('home.flexibleScheduling'), t('home.consolidation'), t('home.weeklyDepartures')],
       gradient: "from-teal-500 to-teal-700",
       link: "/services/lcl"
     },
     { 
-      title: "Warehousing", 
+      title: t('home.warehousing'), 
       icon: "🏢",
-      description: "Secure storage and inventory management solutions",
-      features: ["24/7 Security", "Climate Control", "Inventory Tracking"],
+      description: t('home.warehousingDesc'),
+      features: [t('home.security247'), t('home.climateControl'), t('home.inventoryTracking')],
       gradient: "from-purple-500 to-purple-700",
       link: "/services"
     },
@@ -294,9 +298,9 @@ function ServicesSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Our Services</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">{t('home.ourServices')}</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Comprehensive logistics solutions tailored to your business needs
+            {t('home.comprehensiveSolutions')}
           </p>
         </motion.div>
 
@@ -331,7 +335,7 @@ function ServicesSection() {
                     </div>
 
                     <div className="flex items-center gap-2 text-sm font-semibold pt-4 border-t border-white/20">
-                      <span>Learn More</span>
+                      <span>{t('buttons.learnMore')}</span>
                       <svg className="w-4 h-4 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -353,7 +357,7 @@ function ServicesSection() {
             href="/services"
             className="inline-block bg-red-600 text-white px-8 py-4 rounded-full font-semibold hover:bg-red-700 transition shadow-lg"
           >
-            View All Services
+            {t('home.viewAllServices')}
           </Link>
         </motion.div>
       </div>
@@ -363,26 +367,27 @@ function ServicesSection() {
 
 // Features Section
 function FeaturesSection() {
+  const { t } = useLanguage();
   const features = [
     {
       icon: "🔒",
-      title: "Secure & Safe",
-      description: "Advanced security measures and insurance coverage for all shipments"
+      title: t('home.secureTitle'),
+      description: t('home.secureDesc')
     },
     {
       icon: "📱",
-      title: "Real-Time Tracking",
-      description: "Monitor your cargo 24/7 with our advanced tracking system"
+      title: t('home.trackingTitle'),
+      description: t('home.trackingDesc')
     },
     {
       icon: "💼",
-      title: "Expert Support",
-      description: "Dedicated account managers and 24/7 customer service"
+      title: t('home.supportTitle'),
+      description: t('home.supportDesc')
     },
     {
       icon: "🌐",
-      title: "Global Coverage",
-      description: "Network spanning 200+ ports and airports worldwide"
+      title: t('home.coverageTitle'),
+      description: t('home.coverageDesc')
     }
   ];
 
@@ -395,9 +400,9 @@ function FeaturesSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Why Choose Us</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">{t('home.whyChoose')}</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Industry-leading logistics solutions with unmatched reliability
+            {t('home.industryLeading')}
           </p>
         </motion.div>
 
@@ -429,6 +434,7 @@ function FeaturesSection() {
 
 // Global Network Section
 function GlobalNetworkSection() {
+  const { t } = useLanguage();
   const partners = [
     { name: "CIT Group Asia", region: "Asia Pacific" },
     { name: "RCL Group", region: "Southeast Asia" },
@@ -460,9 +466,9 @@ function GlobalNetworkSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">Our Global Network</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white">{t('home.globalNetwork')}</h2>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Partnering with leading logistics companies worldwide
+            {t('home.partnerNetwork')}
           </p>
         </motion.div>
 
@@ -500,7 +506,7 @@ function GlobalNetworkSection() {
             href="/about"
             className="inline-block bg-red-600 text-white px-8 py-4 rounded-full font-semibold hover:bg-red-700 transition shadow-lg"
           >
-            Learn More About Us
+            {t('home.learnMoreAboutUs')}
           </Link>
         </motion.div>
       </div>
@@ -510,6 +516,7 @@ function GlobalNetworkSection() {
 
 // CTA Section
 function CTASection() {
+  const { t } = useLanguage();
   return (
     <section className="relative py-24 bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white overflow-hidden">
       {/* Animated Background */}
@@ -525,9 +532,9 @@ function CTASection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-6xl font-bold mb-6">Ready to Ship Your Cargo?</h2>
+          <h2 className="text-4xl md:text-6xl font-bold mb-6">{t('home.readyToShip')}</h2>
           <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Contact us today and experience world-class logistics solutions with competitive pricing
+            {t('home.contactUsToday')}
           </p>
           
           <div className="flex flex-wrap gap-4 justify-center mb-12">
@@ -535,31 +542,18 @@ function CTASection() {
               href="/contact"
               className="bg-white text-red-600 px-10 py-5 rounded-full font-bold text-lg hover:bg-gray-100 transition shadow-2xl hover:scale-105 transform"
             >
-              Get Your Quote Now  
+              {t('home.contactUsNow')}
             </Link>
             <Link 
               href="/tracking"
               className="bg-transparent border-2 border-white text-white px-10 py-5 rounded-full font-bold text-lg hover:bg-white hover:text-red-600 transition"
             >
-              Track Your Shipment
+              {t('home.trackYourShipment')}
               
             </Link>
           </div>
 
           {/* Employee Portal Link */}
-          <div className="mt-8 pt-8 border-t border-white/20">
-            <p className="text-sm opacity-75 mb-3">Are you a staff member?</p>
-            <Link 
-              href="/admin"
-              className="inline-flex items-center gap-2 bg-gray-900/50 backdrop-blur-sm text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-900 transition border border-white/20"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Employee Portal Login
-            </Link>
-          </div>
-
           {/* Contact Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
             <motion.div
@@ -567,7 +561,7 @@ function CTASection() {
               whileHover={{ scale: 1.05 }}
             >
               <div className="text-3xl mb-2">📞</div>
-              <div className="font-semibold mb-1">Call Us</div>
+              <div className="font-semibold mb-1">{t('home.callUs')}</div>
               <div className="text-sm opacity-90">+6622493889 (auto)</div>
               <div className="text-sm opacity-90">FAX: +6622493778</div>
               <div className="text-sm opacity-90">CELL: +66832947428</div>
@@ -577,7 +571,7 @@ function CTASection() {
               whileHover={{ scale: 1.05 }}
             >
               <div className="text-3xl mb-2">📧</div>
-              <div className="font-semibold mb-1">Email Us</div>
+              <div className="font-semibold mb-1">{t('home.emailUs')}</div>
               <div className="text-sm opacity-90">asian@asianshippingthai.com (main)</div>
               <div className="text-sm opacity-90">info@asianshippingthai.com</div>
             </motion.div>
@@ -586,10 +580,10 @@ function CTASection() {
               whileHover={{ scale: 1.05 }}
             >
               <div className="text-3xl mb-2">⏰</div>
-              <div className="font-semibold mb-1">Business Hours</div>
-              <div className="text-sm opacity-90">Mon-Fri: 9AM - 6PM</div>
-              <div className="text-sm opacity-90">Sat: 10AM - 2PM</div>
-              <div className="text-sm opacity-90">Sun: Closed</div>
+              <div className="font-semibold mb-1">{t('home.businessHours')}</div>
+              <div className="text-sm opacity-90">{t('home.monFri')}</div>
+              <div className="text-sm opacity-90">{t('home.sat')}</div>
+              <div className="text-sm opacity-90">{t('home.sun')}</div>
             </motion.div>
           </div>
         </motion.div>

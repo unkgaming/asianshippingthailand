@@ -72,7 +72,7 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
   console.log('[sendMail] Reply-To:', replyToHeader || 'none');
   console.log('[sendMail] Transport: SMTP only (Resend disabled)');
 
-  // Fallback to SMTP (e.g., Gmail with App Password)
+  // SMTP configuration
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
   const user = process.env.SMTP_USER;
@@ -92,6 +92,10 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     port: port || 587,
     secure: port === 465, // true for 465, false for others
     auth: { user, pass },
+    // Fix TLS cert mismatch: hosting uses netdesignhost.com cert
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 
   try {

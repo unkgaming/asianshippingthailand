@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from 'next-auth/react';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { motion } from 'framer-motion';
-import QuoteRequestForm from '@/components/QuoteRequestForm';
+import SimpleContactForm from '@/components/SimpleContactForm';
 
 export default function PortalPage() {
   const router = useRouter();
@@ -246,8 +246,9 @@ export default function PortalPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          replyTo: user.email, // Reply goes to customer
-          to: 'support@asianshippingthai.com', // This will use MAIL_TO from env
+          from: user.email,
+          replyTo: user.email,
+          to: 'asian@asianshippingthai.com',
           subject: `[${supportForm.priority}] ${supportForm.subject}${supportForm.trackingId ? ` - ${supportForm.trackingId}` : ''}`,
           text: `From: ${user.name} (${user.email})\nPriority: ${supportForm.priority}\n${supportForm.trackingId ? `Tracking ID: ${supportForm.trackingId}\n` : ''}\n\nMessage:\n${supportForm.message}`
         })
@@ -288,8 +289,9 @@ export default function PortalPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          replyTo: user.email, // Reply goes to customer
-          to: 'support@asianshippingthai.com',
+          from: user.email,
+          replyTo: user.email,
+          to: 'asian@asianshippingthai.com',
           subject: `[URGENT] Callback Request from ${user.name}`,
           text: `CALLBACK REQUEST\n\nCustomer: ${user.name}\nEmail: ${user.email}\nPhone: ${callbackForm.phone}\nPreferred Time: ${callbackForm.preferredTime}\nReason: ${callbackForm.reason}\n\nPlease call this customer as soon as possible.`
         })
@@ -426,13 +428,13 @@ export default function PortalPage() {
           </button>
           <button
             className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
-              activeSection === 'quote'
+              activeSection === 'contact'
                 ? 'bg-red-600 text-white'
                 : 'text-gray-300 hover:bg-gray-800'
             }`}
-            onClick={() => setActiveSection('quote')}
+            onClick={() => setActiveSection('contact')}
           >
-              <span className="mr-3 text-lg">💬</span> Request Quote
+              <span className="mr-3 text-lg">💬</span> Contact & Support
           </button>
           <button
             className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
@@ -443,16 +445,6 @@ export default function PortalPage() {
             onClick={() => setActiveSection('documents')}
           >
               <span className="mr-3 text-lg">📄</span> My Documents
-          </button>
-          <button
-            className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
-              activeSection === 'support'
-                ? 'bg-red-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveSection('support')}
-          >
-              <span className="mr-3 text-lg">💬</span> Customer Support
           </button>
           <button
             className={`flex items-center px-3 py-2 rounded-md w-full text-left transition ${
@@ -468,7 +460,7 @@ export default function PortalPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-8 pt-24 overflow-y-auto">
         {/* Notification Banner */}
         {notification && (
           <motion.div
@@ -554,20 +546,12 @@ export default function PortalPage() {
                 <p className="text-blue-100 text-sm">Real-time tracking updates</p>
               </button>
               <button
-                onClick={() => setActiveSection('quote')}
+                onClick={() => setActiveSection('contact')}
                 className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 hover:shadow-xl transition text-left"
               >
                 <div className="text-4xl mb-3">💬</div>
-                <h3 className="text-xl font-bold mb-2">Request Quote</h3>
-                <p className="text-purple-100 text-sm">Get instant pricing</p>
-              </button>
-              <button
-                onClick={() => setActiveSection('support')}
-                className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 hover:shadow-xl transition text-left"
-              >
-                <div className="text-4xl mb-3">💬</div>
-                <h3 className="text-xl font-bold mb-2">Customer Support</h3>
-                <p className="text-green-100 text-sm">24/7 assistance available</p>
+                <h3 className="text-xl font-bold mb-2">Contact & Support</h3>
+                <p className="text-purple-100 text-sm">Get quotes & help</p>
               </button>
             </div>
 
@@ -1166,24 +1150,10 @@ export default function PortalPage() {
           </motion.div>
         )}
 
-        {/* Request Quote */}
-        {activeSection === 'quote' && (
+        {/* Contact & Support */}
+        {activeSection === 'contact' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Request a Quote</h2>
-            <div className="bg-white rounded-xl shadow-lg p-8">
-              <p className="text-gray-600 mb-6">Fill out the form below to request a shipping quote. Our team will respond within 24 hours.</p>
-              <QuoteRequestForm 
-                user={user}
-                onSuccess={() => setActiveSection('dashboard')}
-              />
-            </div>
-          </motion.div>
-        )}
-
-        {/* Customer Support */}
-        {activeSection === 'support' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Customer Support</h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">Contact & Support</h2>
             
             {/* Quick Contact Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -1287,7 +1257,7 @@ export default function PortalPage() {
               </div>
             )}
 
-            {/* Contact Form */}
+            {/* Unified Contact Form */}
             <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
               <h3 className="text-2xl font-bold mb-6">Send us a Message</h3>
               <form onSubmit={handleSendSupportMessage} className="space-y-6">

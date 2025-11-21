@@ -3,37 +3,39 @@
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ServicesPage() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
 
   const services = [
     {
       icon: String.fromCodePoint(0x2708, 0xFE0F),
-      title: 'Airfreight Services',
-      subtitle: 'Fast & Reliable Air Cargo',
-      description: 'We deliver cargo worldwide with speed and precision through our extensive network of air carriers.',
-      features: ['Express Delivery', 'Real-time Tracking', 'Customs Clearance', 'Door-to-Door Service'],
+      title: t('servicesPage.airfreightServices'),
+      subtitle: t('servicesPage.fastReliableAir'),
+      description: t('servicesPage.deliverWorldwide'),
+      features: [t('servicesPage.expressDelivery'), t('servicesPage.realTimeTracking'), t('servicesPage.customsClearance'), t('servicesPage.doorToDoorService')],
       regions: ['Europe', 'USA & Canada', 'Middle East', 'South Asia', 'South East Asia', 'Americas'],
       image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80',
       link: '/services/airfreight'
     },
     {
       icon: String.fromCodePoint(0x1F6A2),
-      title: 'Seafreight Services: FCL',
-      subtitle: 'Full Container Load',
-      description: 'Full-container shipping service for large-scale sea freight with flexible options.',
-      features: ['20ft & 40ft Containers', 'Competitive Rates', 'Global Network', 'Dedicated Support'],
+      title: t('servicesPage.seafreightFCL'),
+      subtitle: t('servicesPage.fullContainerLoad'),
+      description: t('servicesPage.fullContainerShipping'),
+      features: [t('servicesPage.containers2040'), t('servicesPage.competitiveRates'), t('servicesPage.globalNetwork'), t('servicesPage.dedicatedSupport')],
       regions: ['Europe', 'Middle East', 'Asia Pacific', 'Americas'],
       image: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80',
       link: '/services/fcl'
     },
     {
       icon: String.fromCodePoint(0x1F4E6),
-      title: 'Seafreight Services: LCL',
-      subtitle: 'Less Than Container Load',
-      description: 'Cost-effective sea freight solution perfect for smaller shipments.',
-      features: ['Cost-Effective', 'Flexible Scheduling', 'Consolidation', 'Weekly Departures'],
+      title: t('servicesPage.seafreightLCL'),
+      subtitle: t('servicesPage.lessThanContainer'),
+      description: t('servicesPage.costEffectiveSea'),
+      features: [t('servicesPage.costEffective'), t('servicesPage.flexibleScheduling'), t('servicesPage.consolidation'), t('servicesPage.weeklyDepartures')],
       regions: ['Europe', 'Asia', 'Americas', 'Middle East', 'Africa', 'Oceania'],
       image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80',
       link: '/services/lcl'
@@ -50,10 +52,10 @@ export default function ServicesPage() {
         <div className="relative z-10 h-full flex items-center">
           <div className="max-w-7xl mx-auto px-4 w-full">
             <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
-              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">Our Services</h1>
-              <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-2xl">Professional freight forwarding solutions</p>
+              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">{t('servicesPage.ourServices')}</h1>
+              <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-2xl">{t('servicesPage.professionalFreight')}</p>
               <div className="flex gap-4">
-                <Link href="/contact" className="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition">Request Quote</Link>
+                <Link href="/contact" className="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition">{t('servicesPage.contactUs')}</Link>
               </div>
             </motion.div>
           </div>
@@ -83,7 +85,7 @@ export default function ServicesPage() {
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       {service.features.map((f, i) => (<div key={i} className="flex items-center gap-2"><span></span>{f}</div>))}
                     </div>
-                    <Link href={service.link} className="bg-red-600 text-white px-6 py-3 rounded-lg inline-block">Learn More</Link>
+                    <Link href={service.link} className="bg-red-600 text-white px-6 py-3 rounded-lg inline-block">{t('servicesPage.learnMore')}</Link>
                   </div>
                 </div>
               </motion.div>

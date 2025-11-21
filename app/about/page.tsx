@@ -2,35 +2,38 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AboutPage() {
+  const { t } = useLanguage();
+  
   const stats = [
-    { number: '23+', label: 'Years Experience' },
-    { number: 'Asia', label: 'Regional Focus' },
-    { number: 'Fast', label: 'Customs Clearance' },
-    { number: '1 Day', label: 'Delivery Guarantee' },
+    { number: '23+', label: t('about.yearsExp') },
+    { number: 'Asia', label: t('about.regionalFocus') },
+    { number: 'Fast', label: t('about.fastCustoms') },
+    { number: '1 Day', label: t('about.deliveryGuarantee') },
   ];
 
   const values = [
     {
       icon: '🎯',
-      title: 'Reliability',
-      description: 'We deliver on our promises with consistent, dependable service you can count on.'
+      title: t('about.reliability'),
+      description: t('about.reliabilityDesc')
     },
     {
       icon: '⚡',
-      title: 'Speed',
-      description: 'Fast processing and transit times to keep your business moving forward.'
+      title: t('about.speed'),
+      description: t('about.speedDesc')
     },
     {
       icon: '🔒',
-      title: 'Security',
-      description: 'Your cargo is protected with comprehensive insurance and secure handling.'
+      title: t('about.security'),
+      description: t('about.securityDesc')
     },
     {
       icon: '🤝',
-      title: 'Partnership',
-      description: 'We work as your logistics partner, not just a service provider.'
+      title: t('about.partnership'),
+      description: t('about.partnershipDesc')
     },
   ];
 
@@ -78,10 +81,10 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              About Asian Shipping Thailand
+              {t('about.title')}
             </h1>
             <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
-              Thailand's trusted logistics partner for freight forwarding and customs brokerage since 2002.
+              {t('about.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -120,25 +123,17 @@ export default function AboutPage() {
               animate={{ opacity: 1, x: 0 }}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">
-                Our Story
+                {t('about.ourStory')}
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
-                  Founded in 2002, Asian Shipping (Thailand) Co., Ltd. began with a simple mission: to make international
-                  shipping accessible and reliable for businesses of all sizes. What started as
-                  a small freight forwarding operation in Bangkok has grown into a trusted
-                  logistics partner serving clients across Asia and beyond.
+                  {t('about.storyP1')}
                 </p>
                 <p>
-                  As a qualified customs broker in Thailand, we specialize in clearing both general 
-                  and dangerous cargo. Our expertise in air, sea, and ground transportation services, 
-                  combined with our one-day delivery guarantee for import shipments, makes us the 
-                  fastest service provider among local forwarders.
+                  {t('about.storyP2')}
                 </p>
                 <p>
-                  We're not just moving boxes—we're your logistics partner, committed to fast and 
-                  reliable declaration, seamless door-to-door services, and ensuring your business 
-                  operations run smoothly across Thailand and Asia.
+                  {t('about.storyP3')}
                 </p>
               </div>
             </motion.div>
@@ -168,10 +163,10 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              Certifications & Memberships
+              {t('about.certificationsTitle')}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Trusted, certified, and qualified to serve you
+              {t('about.certificationsSubtitle')}
             </p>
           </motion.div>
 
@@ -184,7 +179,7 @@ export default function AboutPage() {
             >
               <div className="flex items-center gap-3 mb-6">
                 <span className="text-4xl">🏆</span>
-                <h3 className="text-2xl font-bold text-gray-800">Certifications</h3>
+                <h3 className="text-2xl font-bold text-gray-800">{t('about.certifications')}</h3>
               </div>
               <div className="space-y-4">
                 <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
@@ -242,15 +237,13 @@ export default function AboutPage() {
               <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-8 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-4xl">📋</span>
-                  <h3 className="text-2xl font-bold text-gray-800">Customs Brokerage</h3>
+                  <h3 className="text-2xl font-bold text-gray-800">{t('about.customsBrokerage')}</h3>
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  Asian Shipping (Thailand) Co., Ltd. is also a qualified customs broker in Thailand. 
-                  We are specialized in clearing both general cargo and dangerous cargo. One day delivery 
-                  for import shipments and one day declaration for export.
+                  {t('about.customsDesc')}
                 </p>
                 <div className="bg-red-600 text-white px-4 py-3 rounded-lg font-semibold text-center">
-                  "FAST & RELIABLE DECLARATION IS OUR MISSION"
+                  "{t('about.customsMission')}"
                 </div>
               </div>
 
@@ -258,16 +251,14 @@ export default function AboutPage() {
               <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-8 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-4xl">🚚</span>
-                  <h3 className="text-2xl font-bold text-gray-800">Door to Door Services & Inland Transportation</h3>
+                  <h3 className="text-2xl font-bold text-gray-800">{t('about.doorToDoor')}</h3>
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  Due to our best performance in customs brokerage, we are trusted to be the fastest 
-                  door to door service provider in Thailand among local forwarders. Asian guarantees 
-                  a one day delivery to all customers in Thailand.
+                  {t('about.doorToDoorDesc')}
                 </p>
                 <div className="flex items-center gap-2 text-green-700 font-semibold">
                   <span className="text-2xl">⚡</span>
-                  <span>One Day Delivery Guarantee in Thailand</span>
+                  <span>{t('about.oneDayGuarantee')}</span>
                 </div>
               </div>
             </motion.div>
@@ -284,10 +275,10 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              Meet Our Team
+              {t('about.meetTeam')}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Experienced professionals dedicated to your success
+              {t('about.teamSubtitle')}
             </p>
           </motion.div>
 
@@ -337,10 +328,10 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              Our Core Values
+              {t('about.coreValues')}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              The principles that guide everything we do
+              {t('about.valuesSubtitle')}
             </p>
           </motion.div>
 
@@ -375,23 +366,23 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to Ship with Us?
+              {t('about.readyToShip')}
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of businesses that trust asianshippingthai for their shipping needs
+              {t('about.joinBusiness')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link
                 href="/contact"
                 className="bg-white text-red-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition shadow-lg"
               >
-                Get Started
+                {t('about.getStarted')}
               </Link>
               <Link
                 href="/services"
                 className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-red-600 transition"
               >
-                View Services
+                {t('about.viewServices')}
               </Link>
             </div>
           </motion.div>

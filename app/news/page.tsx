@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NewsArticle {
   id: string;
@@ -18,6 +19,7 @@ interface NewsArticle {
 }
 
 export default function NewsPage() {
+  const { t } = useLanguage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,10 +61,10 @@ export default function NewsPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              News & Updates
+              {t('news.title')}
             </h1>
             <p className="text-xl md:text-2xl opacity-90">
-              Stay informed about the latest from Asian Shipping Thailand
+              {t('news.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -74,13 +76,13 @@ export default function NewsPage() {
           {loading ? (
             <div className="text-center py-20">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading news...</p>
+              <p className="text-gray-600">{t('news.loading')}</p>
             </div>
           ) : articles.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-6xl mb-4">📰</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">No News Yet</h2>
-              <p className="text-gray-600">Check back soon for updates and announcements.</p>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('news.noNews')}</h2>
+              <p className="text-gray-600">{t('news.noNewsDesc')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -129,7 +131,7 @@ export default function NewsPage() {
 
                         {/* Read More */}
                         <div className="flex items-center text-red-600 font-semibold mt-auto">
-                          Read More
+                          {t('news.readMore')}
                           <svg
                             className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
                             fill="none"

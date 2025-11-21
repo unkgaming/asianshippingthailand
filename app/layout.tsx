@@ -5,6 +5,7 @@ import Footer from '../components/Footer'
 import Providers from '../components/providers'
 import GlobalErrorHandler from '../components/GlobalErrorHandler'
 import { AuthProvider } from '../contexts/AuthContext'
+import { LanguageProvider } from '../contexts/LanguageContext'
 import { defaultMetadata, organizationSchema } from '../lib/metadata'
 
 export const metadata = defaultMetadata;
@@ -33,11 +34,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <GlobalErrorHandler />
         <Providers>
-          <AuthProvider>
-            <ClientNavbar />
-            <main id="main-content" className="min-h-[calc(100vh-120px)]">{children}</main>
-            <Footer />
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <ClientNavbar />
+              <main id="main-content" className="min-h-[calc(100vh-120px)]">{children}</main>
+              <Footer />
+            </AuthProvider>
+          </LanguageProvider>
         </Providers>
       </body>
     </html>
