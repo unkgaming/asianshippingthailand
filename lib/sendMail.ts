@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
 export type SendMailInput = {
   from?: string;
@@ -64,38 +63,7 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
   console.log('[sendMail] To:', to);
   console.log('[sendMail] Subject:', subject);
   console.log('[sendMail] Reply-To:', replyToHeader || 'none');
-
-  // Prefer Resend if API key present
-  const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
-    console.log('[sendMail] Trying Resend API...');
-    const resend = new Resend(resendKey);
-    try {
-      const result = await resend.emails.send({
-        from: headerFrom,
-        replyTo: replyToHeader || undefined,
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        text,
-        html,
-      });
-      
-      // Check if Resend returned an error in the response
-      if (result.error) {
-        console.log('[sendMail] ❌ Resend returned error:', JSON.stringify(result.error));
-        console.log('[sendMail] Falling back to SMTP...');
-        // Don't return, fall through to SMTP
-      } else {
-        console.log('[sendMail] ✅ Email sent via Resend');
-        console.log('[sendMail] Resend response:', JSON.stringify(result));
-        return;
-      }
-    } catch (err: any) {
-      console.log('[sendMail] ❌ Resend failed with exception:', err);
-      console.log('[sendMail] Falling back to SMTP...');
-      // fall through to SMTP
-    }
-  }
+  console.log('[sendMail] Transport: SMTP only (Resend disabled)');
 
   // Fallback to SMTP (e.g., Gmail with App Password)
   const host = process.env.SMTP_HOST;
@@ -111,7 +79,7 @@ export async function sendMail({ from, replyTo, to = defaultTo, subject, text, h
     return;
   }
 
-  console.log('[sendMail] Trying SMTP transport...');
+  console.log('[sendMail] Using SMTP transport...');
   const transporter = nodemailer.createTransport({
     host,
     port: port || 587,
