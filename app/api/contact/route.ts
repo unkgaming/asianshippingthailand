@@ -64,9 +64,24 @@ export async function POST(req: Request) {
     // Invalidate inquiry cache so staff see new inquiry immediately
     cacheService.invalidateInquiries();
 
-    // Try to notify via email (best-effort, non-blocking)
-    // Use sendTo if provided, otherwise fall back to MAIL_TO env var
-    const recipient = sendTo || process.env.MAIL_TO;
+    // Decide recipient routing:
+    // 1. Explicit sendTo from client (validated later) overrides.
+    // 2. If service indicates general info -> info@, else main -> asian@
+    // 3. Fallback to MAIL_TO env.
+    const generalKeywords = ['general', 'info', 'information'];
+    const normalizedService = (service || '').toLowerCase();
+    const infoAddress = process.env.CONTACT_INFO_TO || 'info@asianshippingthai.com';
+    const mainAddress = process.env.CONTACT_MAIN_TO || 'asian@asianshippingthai.com';
+    let recipient = sendTo || undefined;
+    if (!recipient) {
+      if (generalKeywords.some(k => normalizedService.includes(k))) {
+        recipient = infoAddress;
+      } else {
+        recipient = mainAddress;
+      }
+    }
+    // Final fallback if still unset
+    recipient = recipient || process.env.MAIL_TO || mainAddress;
     
     const subject = `New inquiry from ${name} (${service || 'General'})`;
     const text = `New inquiry received\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nCompany: ${company || '-'}\nService: ${service || '-'}\nProduct Type: ${productType || '-'}\nWeight: ${weight ? `${weight} ${weightUnit || ''}` : '-'}\n\nMessage:\n${message}\n\nSubmitted at: ${new Date().toISOString()}`;
@@ -86,7 +101,8 @@ export async function POST(req: Request) {
 
     // Send notification email with customer as reply-to
     void sendMail({
-      replyTo: email, // Reply goes to customer
+      from: process.env.EMAIL_FROM_WEBFORM || 'webform@asianshippingthai.com',
+      replyTo: email, // Replies go directly to customer
       to: recipient,
       subject,
       text,
