@@ -13,12 +13,7 @@ export function middleware(req: Request) {
       url.host = canonical;
       return NextResponse.redirect(url, 308);
     }
-
-    // Redirect any vercel.app host (preview or project domain) to canonical
-    if (host.endsWith('.vercel.app') && host !== canonical) {
-      url.host = canonical;
-      return NextResponse.redirect(url, 308);
-    }
+    // Removed redirect from .vercel.app hosts to canonical domain
   }
 
   return NextResponse.next();
