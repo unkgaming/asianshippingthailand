@@ -6,7 +6,12 @@ async function auth(req: NextRequest, ctx: any) {
   console.log('[NextAuth] Request URL:', req.url);
   console.log('[NextAuth] NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
   console.log('[NextAuth] Request method:', req.method);
-  return NextAuth(authOptions)(req, ctx);
+  try {
+    return NextAuth(authOptions)(req, ctx);
+  } catch (error) {
+    console.error('[NextAuth] Fatal error:', error);
+    throw error;
+  }
 }
 
 export { auth as GET, auth as POST };
