@@ -14,6 +14,7 @@ export function generateVerificationToken(): string {
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   debug: true, // Enable debug mode to see more details
+  adapter: PrismaAdapter(prisma),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
