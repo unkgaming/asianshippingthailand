@@ -38,10 +38,6 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  pages: {
-    signIn: "/signin",
-    error: "/api/auth/error",
-  },
   // callbacks: {
   //   async jwt({ token, user }) {
   //     if (user && (user as any).email) {
