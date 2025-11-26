@@ -56,51 +56,51 @@ export const authOptions: NextAuthOptions = {
     signIn: "/signin",
     error: "/api/auth/error",
   },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user && (user as any).email) {
-        (token as any).email = (user as any).email;
-      }
-
-      const email = ((user as any)?.email) || ((token as any)?.email);
-      if (email) {
-        try {
-          const dbUser = await prisma.user.findUnique({ where: { email } });
-          if (dbUser) {
-            (token as any).id = dbUser.id;
-            (token as any).role = dbUser.role || 'customer';
-          }
-        } catch (_) {}
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-      }
-      return session;
-    },
-  },
-  events: {
-    async signIn({ user, account }) {
-      if (!user?.email) return;
-      const existingUser = await prisma.user.findUnique({ where: { email: user.email } });
-      if (!existingUser) {
-        const newUser = await prisma.user.create({
-          data: {
-            email: user.email,
-            name: user.name || user.email.split('@')[0],
-            image: user.image,
-            provider: account?.provider || 'email',
-            role: 'customer',
-          },
-        });
-        await prisma.userConfig.create({
-          data: { userId: newUser.id, phone: null, company: null, preferences: {} },
-        });
-      }
-    },
-  },
+  // callbacks: {
+  //   async jwt({ token, user }) {
+  //     if (user && (user as any).email) {
+  //       (token as any).email = (user as any).email;
+  //     }
+  //
+  //     const email = ((user as any)?.email) || ((token as any)?.email);
+  //     if (email) {
+  //       try {
+  //         const dbUser = await prisma.user.findUnique({ where: { email } });
+  //         if (dbUser) {
+  //           (token as any).id = dbUser.id;
+  //           (token as any).role = dbUser.role || 'customer';
+  //         }
+  //       } catch (_) {}
+  //     }
+  //     return token;
+  //   },
+  //   async session({ session, token }) {
+  //     if (session.user) {
+  //       (session.user as any).id = token.id;
+  //       (session.user as any).role = token.role;
+  //     }
+  //     return session;
+  //   },
+  // },
+  // events: {
+  //   async signIn({ user, account }) {
+  //     if (!user?.email) return;
+  //     const existingUser = await prisma.user.findUnique({ where: { email: user.email } });
+  //     if (!existingUser) {
+  //       const newUser = await prisma.user.create({
+  //         data: {
+  //           email: user.email,
+  //           name: user.name || user.email.split('@')[0],
+  //           image: user.image,
+  //           provider: account?.provider || 'email',
+  //           role: 'customer',
+  //         },
+  //       });
+  //       await prisma.userConfig.create({
+  //         data: { userId: newUser.id, phone: null, company: null, preferences: {} },
+  //       });
+  //     }
+  //   },
+  // },
   secret: process.env.NEXTAUTH_SECRET,
 };
