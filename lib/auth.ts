@@ -31,6 +31,21 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        try {
+          console.log('[Google Provider] Received profile:', profile);
+          return {
+            id: profile.sub,
+            name: profile.name,
+            email: profile.email,
+            image: profile.picture,
+            emailVerified: profile.email_verified ? new Date() : null,
+          } as any;
+        } catch (error) {
+          console.error('[Google Provider] Profile error:', error);
+          throw error;
+        }
+      },
     }),
     Credentials({
       name: "Credentials",
