@@ -29,7 +29,7 @@ export const authOptions: NextAuthOptions = {
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientSecret: "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.",
       allowDangerousEmailAccountLinking: true,
       profile(profile) {
         try {
