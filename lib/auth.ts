@@ -96,3 +96,8 @@ export const authOptions: NextAuthOptions = {
             role: 'customer',
           },
         });
+        await prisma.userConfig.create({
+          data: { userId: newUser.id, phone: null, company: null, preferences: {} },
+        });
+      }
+    },
