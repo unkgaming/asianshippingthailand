@@ -8,8 +8,15 @@ async function auth(req: NextRequest, ctx: any) {
   console.log('[NextAuth] Request method:', req.method);
   try {
     return NextAuth(authOptions)(req, ctx);
-  } catch (error) {
-    console.error('[NextAuth] Fatal error:', error);
+  } catch (error: any) {
+    console.error('[NextAuth] Fatal error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name,
+      meta: error.meta,
+      error,
+    });
     throw error;
   }
 }
