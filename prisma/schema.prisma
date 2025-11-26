@@ -1,32 +1,27 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String?
-  provider  String?
-  image     String?
-  emailVerified DateTime?
+  id                String      @id @default(cuid())
+  email             String      @unique
+  name              String?
+  role              String?
+  provider          String?
+  createdAt         DateTime    @default(now())
+  emailVerified     DateTime?
+  image             String?
+  password          String?
   verificationToken String?
-  password  String?
-  createdAt DateTime @default(now())
-
-  // Relations
-  accounts  Account[]
-  sessions  Session[]
-  config    UserConfig?
+  accounts          Account[]
+  sessions          Session[]
+  config            UserConfig?
 }
 
 model Shipment {
@@ -45,10 +40,10 @@ model Shipment {
   containerContents String
   bookingDate       DateTime
   estimatedDelivery DateTime?
-  documents         ShipmentDocument[]
-  version           Int                @default(0)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  version           Int                @default(0)
+  documents         ShipmentDocument[]
 
   @@index([customerEmail])
   @@index([status])
@@ -58,42 +53,42 @@ model Shipment {
 model ShipmentDocument {
   id         String   @id @default(cuid())
   shipmentId String
-  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   name       String
   url        String?
   createdAt  DateTime @default(now())
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 }
 
 model TrackingUpdate {
   id          String   @id @default(cuid())
   shipmentId  String
-  status      String   // e.g., "Package Picked Up", "In Transit to Port", "Customs Clearance", etc.
+  status      String
   location    String?
   description String?
-  isActive    Boolean  @default(true) // true = green/current, false = red/completed
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  createdBy   String?  // Staff email who created the update
+  createdBy   String?
 
   @@index([shipmentId])
   @@index([createdAt])
 }
 
 model Inquiry {
-  id         String   @id @default(cuid())
-  name       String
-  email      String
-  phone      String?
-  company    String?
-  service    String?
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  company     String?
+  service     String?
   productType String?
-  weight     Float?
-  weightUnit String?
-  message    String
-  status     String   @default("new")
-  hidden     Boolean  @default(false)
-  version    Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+  weight      Float?
+  weightUnit  String?
+  message     String
+  status      String   @default("new")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  version     Int      @default(0)
+  hidden      Boolean  @default(false)
 
   @@index([email])
   @@index([status])
@@ -102,18 +97,18 @@ model Inquiry {
 }
 
 model EmailMessage {
-  id         String   @id @default(cuid())
-  direction  String   @default("outgoing") // outgoing | incoming (future)
-  from       String
-  to         String
-  subject    String
-  text       String?
-  html       String?
-  status     String   @default("queued") // queued | sent | failed
-  error      String?
-  hidden     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  sentAt     DateTime?
+  id        String    @id @default(cuid())
+  direction String    @default("outgoing")
+  from      String
+  to        String
+  subject   String
+  text      String?
+  html      String?
+  status    String    @default("queued")
+  error     String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+  hidden    Boolean   @default(false)
 
   @@index([to])
   @@index([status])
@@ -121,13 +116,12 @@ model EmailMessage {
   @@index([hidden])
 }
 
-// Directory of email accounts (staff or customer contacts)
 model EmailAccount {
   id          String   @id @default(cuid())
   address     String   @unique
   username    String
   password    String
-  accountType String   @default("customer") // customer | staff
+  accountType String   @default("customer")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -137,22 +131,20 @@ model EmailAccount {
   @@index([active])
 }
 
-// NextAuth.js (Auth.js) models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -167,36 +159,34 @@ model Session {
 
 model VerificationToken {
   identifier String
-  token      String @unique
+  token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
-// Application-specific user configuration
 model UserConfig {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone     String?
-  company   String?
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  phone       String?
+  company     String?
   preferences Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Audit trail for all important actions
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  userEmail   String?
-  action      String   // CREATE, UPDATE, DELETE, LOGIN, PAYMENT, etc.
-  entityType  String   // Shipment, Inquiry, User, etc.
-  entityId    String?
-  details     Json?    // Stores changes, metadata
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  userEmail  String?
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([entityType, entityId])
@@ -204,34 +194,32 @@ model AuditLog {
   @@index([action])
 }
 
-// Notification preferences and history
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // shipment_update, payment_received, quote_response
+  type      String
   title     String
   message   String
   read      Boolean  @default(false)
-  data      Json?    // Additional data like shipmentId, etc.
+  data      Json?
   createdAt DateTime @default(now())
 
   @@index([userId, read])
   @@index([createdAt])
 }
 
-// Company news and announcements
 model News {
-  id          String   @id @default(cuid())
-  slug        String   @unique
+  id          String    @id @default(cuid())
+  slug        String    @unique
   title       String
-  excerpt     String?  // Short preview text
-  content     String   @db.Text // Full article content
-  imageUrl    String?  // Featured image
-  author      String   // Staff email who created it
-  published   Boolean  @default(false)
+  excerpt     String?
+  content     String
+  imageUrl    String?
+  author      String
+  published   Boolean   @default(false)
   publishedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([published, publishedAt])
   @@index([slug])
