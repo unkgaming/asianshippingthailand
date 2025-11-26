@@ -14,6 +14,17 @@ export function generateVerificationToken(): string {
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   debug: true, // Enable debug mode to see more details
+  logger: {
+    error(code, ...message) {
+      console.error('[NextAuth Custom Error]', code, ...message);
+    },
+    warn(code, ...message) {
+      console.warn('[NextAuth Custom Warn]', code, ...message);
+    },
+    debug(code, ...message) {
+      console.debug('[NextAuth Custom Debug]', code, ...message);
+    },
+  },
   adapter: PrismaAdapter(prisma),
   providers: [
     Google({
