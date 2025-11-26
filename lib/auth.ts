@@ -96,11 +96,31 @@ export const authOptions: NextAuthOptions = {
             role: 'customer',
           },
         });
-        await prisma.userConfig.create({
-          data: { userId: newUser.id, phone: null, company: null, preferences: {} },
-        });
-      }
-    },
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+      export const authOptions: NextAuthOptions = {
+        session: { strategy: "jwt" },
+        debug: true,
+        adapter: PrismaAdapter(prisma),
+        providers: [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            allowDangerousEmailAccountLinking: true,
+          }),
+          Credentials({
+            name: "Credentials",
+            credentials: {
+              email: { label: "Email", type: "email" },
+              password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+              if (!credentials?.email || !credentials?.password) return null;
+              const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+              if (!user || !user.password) return null;
+              const valid = await bcrypt.compare(credentials.password, user.password);
+              if (!valid) return null;
+              return { id: user.id, name: user.name ?? null, email: user.email, image: (user as any).image ?? null } as any;
+            },
+          }),
+        ],
+        secret: process.env.NEXTAUTH_SECRET,
+      };
