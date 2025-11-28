@@ -27,7 +27,7 @@ interface ShipmentData {
 export default function TrackingDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const trackingId = params.id as string;
+  const trackingId = params?.id ? String(params.id) : "";
   const [shipment, setShipment] = useState<ShipmentData | null>(null);
   const [loading, setLoading] = useState(true);
 
