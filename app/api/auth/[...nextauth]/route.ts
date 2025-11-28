@@ -1,3 +1,5 @@
+"use client";
+import React, { useEffect, useState } from "react";
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 
