@@ -1,4 +1,3 @@
-// Recreated to ensure no hidden encoding issues
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 
