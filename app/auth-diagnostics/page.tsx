@@ -46,7 +46,12 @@ const checks = [
 ];
 
 export default function AuthDiagnostics() {
-  const [results, setResults] = useState([]);
+  type DiagnosticResult = {
+    name: string;
+    status: string;
+    details: any;
+  };
+  const [results, setResults] = useState<DiagnosticResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
