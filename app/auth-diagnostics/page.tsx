@@ -56,7 +56,7 @@ export default function AuthDiagnostics() {
 
   useEffect(() => {
     async function runChecks() {
-      const out = [];
+      const out: DiagnosticResult[] = [];
       for (const check of checks) {
         try {
           const res = await fetch(check.endpoint);
