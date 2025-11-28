@@ -36,59 +36,65 @@ export const authOptions: NextAuthOptions = {
           console.log('[Google Provider] Received profile:', profile);
           return {
             id: profile.sub,
-            name: profile.name,
-            email: profile.email,
-            image: profile.picture,
-            emailVerified: profile.email_verified ? new Date() : null,
-          } as any;
-        } catch (error) {
-          console.error('[Google Provider] Profile error:', error);
-          throw error;
-        }
-      },
-    }),
-    Credentials({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user || !user.password) return null;
-        
-        // Temporarily disable email verification for testing
-        // if (user.provider === 'credentials' && !user.emailVerified) {
-        //   throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
-        // }
-        
-        const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) return null;
-        return { id: user.id, name: user.name ?? null, email: user.email, image: (user as any).image ?? null } as any;
-      },
-    }),
-  ],
-  // callbacks: {
-  //   async jwt({ token, user }) {
-  //     if (user && (user as any).email) {
-  //       (token as any).email = (user as any).email;
-  //     }
-  //
-  //     const email = ((user as any)?.email) || ((token as any)?.email);
-  //     if (email) {
-  //       try {
-  //         const dbUser = await prisma.user.findUnique({ where: { email } });
-  //         if (dbUser) {
-  //           (token as any).id = dbUser.id;
-  //           (token as any).role = dbUser.role || 'customer';
-  //         }
-  //       } catch (_) {}
-  //     }
-  //     return token;
-  //   },
-  //   async session({ session, token }) {
-  //     if (session.user) {
+            providers: [
+              Google({
+                clientId: process.env.GOOGLE_CLIENT_ID!,
+                clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+                allowDangerousEmailAccountLinking: true,
+                profile(profile) {
+                  try {
+                    console.log('[Google Provider] Received profile:', profile);
+                    return {
+                      id: profile.sub,
+                      name: profile.name,
+                      providers: [
+                        Google({
+                          clientId: process.env.GOOGLE_CLIENT_ID!,
+                          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+                          allowDangerousEmailAccountLinking: true,
+                          profile(profile) {
+                            try {
+                              console.log('[Google Provider] Received profile:', profile);
+                              return {
+                                id: profile.sub,
+                                name: profile.name,
+                                email: profile.email,
+                                image: profile.picture,
+                                emailVerified: profile.email_verified ? new Date() : null,
+                              } as any;
+                            } catch (error) {
+                              console.error('[Google Provider] Profile error:', error);
+                              throw error;
+                            }
+                          },
+                        }),
+                        Credentials({
+                          name: "Credentials",
+                          credentials: {
+                            email: { label: "Email", type: "email" },
+                            password: { label: "Password", type: "password" },
+                          },
+                          async authorize(credentials) {
+                            if (!credentials?.email || !credentials?.password) return null;
+                            const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+                            if (!user || !user.password) return null;
+                            // Temporarily disable email verification for testing
+                            // if (user.provider === 'credentials' && !user.emailVerified) {
+                            //   throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
+                            // }
+                            const valid = await bcrypt.compare(credentials.password, user.password);
+                            if (!valid) return null;
+                            return { id: user.id, name: user.name ?? null, email: user.email, image: (user as any).image ?? null } as any;
+                          },
+                        }),
+                      ],
+                      callbacks: {
+                        async signIn({ user, account, profile, email, credentials }) {
+                          console.log('[NextAuth signIn callback]', { user, account, profile, email, credentials });
+                          return true;
+                        },
+                      },
+                      secret: process.env.NEXTAUTH_SECRET,
   //       (session.user as any).id = token.id;
   //       (session.user as any).role = token.role;
   //     }
@@ -116,6 +122,12 @@ export const authOptions: NextAuthOptions = {
   //   },
   // },
   secret: process.env.NEXTAUTH_SECRET,
+  callbacks: {
+    async signIn({ user, account, profile, email, credentials }) {
+      console.log('[NextAuth signIn callback]', { user, account, profile, email, credentials });
+      return true;
+    },
+  },
 };
 
   callbacks: {
