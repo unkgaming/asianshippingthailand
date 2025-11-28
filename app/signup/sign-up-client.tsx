@@ -57,7 +57,7 @@ export default function SignUpClient() {
           router.push("/auth/verify-pending");
         } else {
           // Auto-verified in dev mode, redirect to signin
-          router.push("/signin");
+          router.push("/auth/signin");
         }
       }, 1500);
     } catch (err: any) {

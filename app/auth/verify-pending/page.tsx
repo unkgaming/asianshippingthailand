@@ -44,7 +44,7 @@ function VerifyPendingContent() {
         </p>
 
         <Link
-          href="/signin"
+          href="/auth/signin"
           className="inline-block bg-red-700 hover:bg-red-800 text-white font-medium px-6 py-2 rounded-lg transition-colors"
         >
           Back to Sign In

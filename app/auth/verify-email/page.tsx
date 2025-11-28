@@ -78,7 +78,7 @@ function VerifyEmailContent() {
             </div>
 
             <Link
-              href="/signin"
+              href="/auth/signin"
               className="inline-block bg-red-700 hover:bg-red-800 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               Sign In Now
@@ -121,7 +121,7 @@ function VerifyEmailContent() {
               </Link>
               
               <Link
-                href="/signin"
+                href="/auth/signin"
                 className="block text-gray-600 hover:text-gray-900 font-medium px-6 py-2"
               >
                 Try Signing In

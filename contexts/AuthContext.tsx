@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    signOut({ callbackUrl: '/signin' });
+    signOut({ callbackUrl: '/auth/signin' });
   };
 
   return (

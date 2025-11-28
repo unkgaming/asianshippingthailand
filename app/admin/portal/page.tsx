@@ -212,7 +212,7 @@ export default function EmployeePortalPage() {
       
       if (!user || status === 'unauthenticated') {
         console.log('[Portal] No user - redirecting to signin');
-        router.push('/signin');
+        router.push('/auth/signin');
       } else if (user.role && user.role !== 'employee') {
         console.log('[Portal] Not employee, role:', user.role, '- redirecting to customer portal');
         router.push('/portal');
