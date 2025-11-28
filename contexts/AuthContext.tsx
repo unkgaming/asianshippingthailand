@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const login = async (email: string, password: string) => {
-    await signIn('credentials', { email, password, callbackUrl: '/' });
+    await signIn('credentials', { email, password, callbackUrl: '/portal' });
   };
 
   const employeeLogin = async (email: string, password: string) => {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    await signIn('google', { callbackUrl: '/' });
+    await signIn('google', { callbackUrl: '/portal' });
   };
 
   const logout = () => {
