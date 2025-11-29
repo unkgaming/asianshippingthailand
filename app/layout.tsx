@@ -2,7 +2,7 @@ import './styles/globals.css'
 import { ReactNode } from 'react'
 import ClientNavbar from '../components/ClientNavbar'
 import Footer from '../components/Footer'
-import Providers from '../components/providers'
+import { SessionProvider } from "next-auth/react"
 import GlobalErrorHandler from '../components/GlobalErrorHandler'
 import { AuthProvider } from '../contexts/AuthContext'
 import { LanguageProvider } from '../contexts/LanguageContext'
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         <GlobalErrorHandler />
-        <Providers>
+        <SessionProvider>
           <LanguageProvider>
             <AuthProvider>
               <ClientNavbar />
@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Footer />
             </AuthProvider>
           </LanguageProvider>
-        </Providers>
+        </SessionProvider>
       </body>
     </html>
   );
