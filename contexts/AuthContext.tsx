@@ -46,12 +46,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const login = async (email: string, password: string) => {
-    await signIn('credentials', { email, password, callbackUrl: '/portal' });
+    const result = await signIn('credentials', { email, password, redirect: false });
+    if (result?.error) throw new Error(result.error);
+    if (result?.ok) {
+      window.location.href = '/portal';
+    }
   };
 
   const employeeLogin = async (email: string, password: string) => {
-    // For now use same credentials provider; role management would be server-side
-    await signIn('credentials', { email, password, callbackUrl: '/admin/portal' });
+    const result = await signIn('credentials', { email, password, redirect: false });
+    if (result?.error) throw new Error(result.error);
+    if (result?.ok) {
+      window.location.href = '/admin/portal';
+    }
   };
 
   const loginWithGoogle = async () => {
