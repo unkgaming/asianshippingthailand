@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from "next-auth/react";
+import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
