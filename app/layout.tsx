@@ -2,10 +2,8 @@ import './styles/globals.css'
 import { ReactNode } from 'react'
 import ClientNavbar from '../components/ClientNavbar'
 import Footer from '../components/Footer'
-import { SessionProvider } from "next-auth/react"
 import GlobalErrorHandler from '../components/GlobalErrorHandler'
-import { AuthProvider } from '../contexts/AuthContext'
-import { LanguageProvider } from '../contexts/LanguageContext'
+import { Providers } from "./providers";
 import { defaultMetadata, organizationSchema } from '../lib/metadata'
 
 export const metadata = defaultMetadata;
@@ -33,15 +31,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         <GlobalErrorHandler />
-        <SessionProvider>
-          <LanguageProvider>
-            <AuthProvider>
-              <ClientNavbar />
-              <main id="main-content" className="min-h-[calc(100vh-120px)]">{children}</main>
-              <Footer />
-            </AuthProvider>
-          </LanguageProvider>
-        </SessionProvider>
+        {/* ALL providers now live INSIDE this Client Component */}
+        <Providers>
+          <ClientNavbar />
+          <main id="main-content" className="min-h-[calc(100vh-120px)]">
+            {children}
+          </main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
