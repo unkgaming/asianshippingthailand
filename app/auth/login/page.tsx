@@ -2,13 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../contexts/AuthContext';
+import { signIn } from "next-auth/react";
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginWithGoogle } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,18 +32,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError('');
-    setIsLoading(true);
-
-    try {
-      await loginWithGoogle();
-      router.push('/portal');
-    } catch (err) {
-      setError('Google login is currently unavailable. Please use email/password login.');
-      setIsLoading(false);
-    }
-  };
+  // Remove custom Google login handler
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-600 via-orange-500 to-red-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -153,10 +145,9 @@ export default function LoginPage() {
                 <p className="text-gray-600">Sign in to access your portal</p>
               </div>
               {/* Google Sign In */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleGoogleLogin}
+              <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: "/portal" })}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-3 border-2 border-gray-300 rounded-xl px-4 py-3 hover:bg-gray-50 hover:border-gray-400 transition disabled:opacity-50 disabled:cursor-not-allowed mb-6 font-medium text-gray-700"
               >
@@ -178,8 +169,8 @@ export default function LoginPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Continue with Google
-              </motion.button>
+                Sign in with Google
+              </button>
 
           {/* Divider */}
           <div className="relative my-6">
