@@ -20,8 +20,12 @@ export function middleware(req: Request) {
 }
 
 // Exclude static assets and common files from middleware processing
-export const config = {
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|assets).*)',
+  ],
+};
+export const config = {
+  matcher: [
+    '/((?!api/).*)',
   ],
 };
