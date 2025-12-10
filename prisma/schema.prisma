@@ -20,6 +20,8 @@ model User {
   updatedAt DateTime @updatedAt
   config    UserConfig?
   sessions  Session[]
+  
+  accounts  Account[]
 }
 
 model Shipment {
@@ -29,91 +31,7 @@ model Shipment {
   customerEmail     String
   origin            String
   destination       String
-  serviceType       String
-  status            String
-  paymentStatus     String
-  price             Float
-  weight            Float
-  packageType       String
-  containerContents String
-  bookingDate       DateTime
-  estimatedDelivery DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  version           Int                @default(0)
-  documents         ShipmentDocument[]
-
-  @@index([customerEmail])
-  @@index([status])
-  @@index([createdAt])
 }
-
-model ShipmentDocument {
-  id         String   @id @default(cuid())
-  shipmentId String
-  name       String
-  url        String?
-  createdAt  DateTime @default(now())
-  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-}
-
-model TrackingUpdate {
-  id          String   @id @default(cuid())
-  shipmentId  String
-  status      String
-  location    String?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  createdBy   String?
-
-  @@index([shipmentId])
-  @@index([createdAt])
-}
-
-model Inquiry {
-  id          String   @id @default(cuid())
-  name        String
-  email       String
-  phone       String?
-  company     String?
-  service     String?
-  productType String?
-  weight      Float?
-  weightUnit  String?
-  message     String
-  status      String   @default("new")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-  version     Int      @default(0)
-  hidden      Boolean  @default(false)
-
-  @@index([email])
-  @@index([status])
-  @@index([createdAt])
-  @@index([hidden])
-}
-
-model EmailMessage {
-  id        String    @id @default(cuid())
-  direction String    @default("outgoing")
-  from      String
-  to        String
-  subject   String
-  text      String?
-  html      String?
-  status    String    @default("queued")
-  error     String?
-  createdAt DateTime  @default(now())
-  sentAt    DateTime?
-  hidden    Boolean   @default(false)
-
-  @@index([to])
-  @@index([status])
-  @@index([createdAt])
-  @@index([hidden])
-}
-
 
 model Account {
   id                String  @id @default(cuid())
