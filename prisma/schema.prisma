@@ -32,6 +32,7 @@ model Shipment {
   origin            String
   destination       String
   createdAt         DateTime @default(now())
+  price             Float
 }
 
 model Account {
