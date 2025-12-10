@@ -33,6 +33,9 @@ model Shipment {
   destination       String
   createdAt         DateTime @default(now())
   price             Float
+  paymentStatus     String
+  status            String
+  serviceType       String
 }
 
 model Account {
