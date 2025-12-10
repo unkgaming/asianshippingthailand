@@ -9,19 +9,17 @@ datasource db {
 }
 
 model User {
-  id                String      @id @default(cuid())
-  email             String      @unique
-  name              String?
-  role              String?
-  provider          String?
-  createdAt         DateTime    @default(now())
-  emailVerified     DateTime?
-  image             String?
-  password          String?
-  verificationToken String?
-  accounts          Account[]
-  sessions          Session[]
-  config            UserConfig?
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      String?  // "employee", "customer", etc.
+  provider  String?  // "credentials", "google", etc.
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  config    UserConfig?
+  sessions  Session[]
 }
 
 model Shipment {
@@ -116,20 +114,6 @@ model EmailMessage {
   @@index([hidden])
 }
 
-model EmailAccount {
-  id          String   @id @default(cuid())
-  address     String   @unique
-  username    String
-  password    String
-  accountType String   @default("customer")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([address])
-  @@index([accountType])
-  @@index([active])
-}
 
 model Account {
   id                String  @id @default(cuid())
